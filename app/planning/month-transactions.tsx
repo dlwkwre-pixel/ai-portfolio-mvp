@@ -132,11 +132,32 @@ export default function MonthTransactions({
     });
   }
 
+  // The bank only has ~90 days of history; within that window its transactions should be
+  // the single source, so old hand-logged totals for the month can go in one tap.
+  const bankCoversMonth = month.some((t) => t.source === "plaid");
+  function handleReplaceTotals() {
+    if (!confirm(`Remove ${loggedTotals.length} old total${loggedTotals.length !== 1 ? "s" : ""} for ${MONTH_NAMES[selMonth - 1]} and use your bank's transactions instead? Your plan isn't affected.`)) return;
+    startTransition(async () => {
+      for (const a of loggedTotals) {
+        const res = await deleteExpenseActual(a.id);
+        if (res.error) { setNotice({ text: res.error, tone: "err" }); break; }
+      }
+      router.refresh();
+    });
+  }
+
   const totalsList = loggedTotals.length > 0 && (
     <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
       <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-        Totals logged the old way for {MONTH_NAMES[selMonth - 1]}. They count until that bucket gets transactions.
+        {`Totals logged the old way for ${MONTH_NAMES[selMonth - 1]}. They count until that bucket gets transactions.`}
+        {bankCoversMonth && " Your bank already has this month's transactions, so these may double count spending the bank put in a different bucket."}
       </div>
+      {bankCoversMonth && (
+        <button type="button" disabled={pending} onClick={handleReplaceTotals}
+          style={{ alignSelf: "flex-start", minHeight: "32px", padding: "0 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--green-border)", background: "var(--green-bg)", color: "var(--green)", fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
+          {`Use bank data instead (remove these ${loggedTotals.length})`}
+        </button>
+      )}
       {loggedTotals.map((a) => (
         <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
           <span style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

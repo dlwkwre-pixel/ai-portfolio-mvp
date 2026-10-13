@@ -122,17 +122,51 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   const bucketItems = (items ?? []).map((i) => ({ ...i, amount: Number(i.amount) })) as { id: string; label: string; type: "income" | "expense"; category: string | null; amount: number }[];
   const ruleList = (rules ?? []) as MerchantRule[];
 
-  // Classify; update rows we already have; collect the rest as candidates.
+  // Classify, then catch money moving between two of the user's OWN linked accounts
+  // (Zelle from Chase to Robinhood savings): it appears as an outflow on one account and
+  // an inflow of the same amount on another a day or two later. The inflow isn't income;
+  // the outflow is a save when it landed in savings/investments, else a plain transfer.
+  const subtypeOf = new Map((accts ?? []).map((a) => [a.account_id as string, String(a.subtype ?? a.type ?? "")]));
+  const classified = new Map(posted.map((t) => [t.id, classifyBankTransaction(t)]));
+  const MOVE_RE = /zelle|transfer|xfer|venmo|cash\s*app|ach|deposit|payment (from|to)|online/i;
+  const usedOut = new Set<string>();
+  const dayDiff = (a: string, b: string) => Math.abs(new Date(`${a}T00:00:00Z`).getTime() - new Date(`${b}T00:00:00Z`).getTime()) / 86_400_000;
+  for (const inflow of posted) {
+    const c = classified.get(inflow.id)!;
+    if (inflow.amount >= 0 || c.kind !== "income" || !MOVE_RE.test(`${inflow.merchant ?? ""} ${inflow.name}`)) continue;
+    const outflow = posted.find((o) => o.amount > 0 && !usedOut.has(o.id) && o.accountId !== inflow.accountId
+      && Math.abs(o.amount + inflow.amount) < 0.005 && dayDiff(o.date, inflow.date) <= 4
+      && (["save", "transfer"].includes(classified.get(o.id)!.kind) || MOVE_RE.test(`${o.merchant ?? ""} ${o.name}`)));
+    if (!outflow) continue;
+    usedOut.add(outflow.id);
+    classified.set(inflow.id, { kind: "transfer" });
+    const destination = subtypeOf.get(inflow.accountId) ?? "";
+    if (classified.get(outflow.id)!.kind === "spend") {
+      classified.set(outflow.id, { kind: /saving|money market|cd|investment|brokerage|ira/i.test(destination) ? "save" : "transfer" });
+    }
+  }
+
+  // Update rows we already have (incl. ones whose classification changed); collect the rest.
   const candidates: { t: BankTransaction; parsed: ParsedTxn }[] = [];
   for (const t of posted) {
-    const { kind, category } = classifyBankTransaction(t);
+    const { kind, category } = classified.get(t.id)!;
     const amount = Math.abs(t.amount);
     const have = byExternal.get(t.id);
     if (have) {
+      if (kind === "transfer") {
+        // Now known to be a move between the user's own accounts — not income/spending.
+        await admin.from("cash_flow_transactions").delete().eq("id", have.id).eq("user_id", userId);
+        continue;
+      }
       const signed = kind === "refund" ? -amount : amount;
-      if (have.txn_date !== t.date || Math.abs(have.amount - signed) >= 0.005) {
+      const direction = kind === "income" ? "in" : kind === "save" ? "save" : "out";
+      if (have.txn_date !== t.date || Math.abs(have.amount - signed) >= 0.005 || have.direction !== direction) {
         await admin.from("cash_flow_transactions")
-          .update({ txn_date: t.date, period_year: Number(t.date.slice(0, 4)), period_month: Number(t.date.slice(5, 7)), amount: signed, updated_at: new Date().toISOString() })
+          .update({
+            txn_date: t.date, period_year: Number(t.date.slice(0, 4)), period_month: Number(t.date.slice(5, 7)), amount: signed,
+            ...(have.direction !== direction ? { direction, cash_flow_item_id: null } : {}),
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", have.id).eq("user_id", userId);
       }
       continue;
