@@ -117,7 +117,7 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
   const hasAccounts = status.accounts.length > 0;
   const total = status.accounts.reduce((s, a) => {
     const bal = Number(a.balance_current ?? 0);
-    if (!Number.isFinite(bal)) return s;
+    if (!Number.isFinite(bal) || a.duplicate_of) return s;
     return a.type === "credit" || a.type === "loan" ? s - bal : s + bal;
   }, 0);
   const lastSynced = status.connections.map((c) => c.lastSyncedAt).filter(Boolean).sort().pop() ?? null;
@@ -153,7 +153,10 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
                 <div style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {a.name}{a.mask ? ` ··${a.mask}` : ""}
                 </div>
-                <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{a.subtype ?? a.type}</div>
+                <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>
+                  {a.subtype ?? a.type}
+                  {a.duplicate_of && <span style={{ textTransform: "none", color: "var(--amber)" }}> · linked twice, counted once</span>}
+                </div>
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "12.5px", fontWeight: 600, color: a.type === "credit" || a.type === "loan" ? "var(--red, #f87171)" : "var(--text-primary)" }}>
                 {a.type === "credit" || a.type === "loan" ? `−${money(a.balance_current)}` : money(a.balance_current)}
@@ -174,7 +177,10 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
               {status.connections.map((c) => (
                 <div key={c.itemId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                   <span style={{ fontSize: "10.5px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.institution ?? "Linked bank"}{c.lastError ? " · sync issue" : ""}
+                    {c.institution ?? "Linked bank"}
+                    {` · ${c.accountCount} account${c.accountCount !== 1 ? "s" : ""}`}
+                    {c.accountCount > 0 && c.duplicateCount === c.accountCount && <span style={{ color: "var(--amber)" }}> · all already linked elsewhere, safe to unlink</span>}
+                    {c.lastError ? " · sync issue" : ""}
                   </span>
                   <button
                     type="button" disabled={busy !== null}

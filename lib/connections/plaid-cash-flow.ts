@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BankTransaction } from "./plaid";
 import { getDismissedPlaidIds } from "./plaid";
+import { findDuplicateAccounts } from "./account-dedupe";
 import {
   cleanMerchant, findDuplicates, suggestBucket, looksLikeSave, looksLikeTransfer, looksLikeRefund,
   type CashFlowTransaction, type MerchantRule, type ParsedTxn, type TxnKind,
@@ -82,12 +83,22 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       .eq("user_id", userId).eq("source", "plaid").in("external_id", removedIds);
   }
 
-  const [{ data: accts }, dismissed] = await Promise.all([
-    admin.from("bank_accounts").select("account_id, type").eq("user_id", userId),
+  const [{ data: accts }, { data: conns }, dismissed] = await Promise.all([
+    admin.from("bank_accounts").select("account_id, item_id, name, official_name, mask, type, subtype").eq("user_id", userId),
+    admin.from("bank_connections").select("item_id, last_synced_at").eq("user_id", userId),
     getDismissedPlaidIds(userId),
   ]);
   // Brokerage and loan accounts: their activity isn't spending (and SnapTrade covers holdings).
   const skipAccounts = new Set((accts ?? []).filter((a) => a.type === "investment" || a.type === "loan").map((a) => a.account_id));
+  // The same account linked through two connections: keep one copy's transactions, and
+  // remove any rows the other copy already added (they'd double the month).
+  const dupOf = findDuplicateAccounts(accts ?? [], new Map((conns ?? []).map((c) => [c.item_id as string, (c.last_synced_at as string | null) ?? null])));
+  for (const id of dupOf.keys()) skipAccounts.add(id);
+  const dupTxnIds = store.filter((t) => dupOf.has(t.accountId)).map((t) => t.id);
+  for (let i = 0; i < dupTxnIds.length; i += 200) {
+    await admin.from("cash_flow_transactions").delete()
+      .eq("user_id", userId).eq("source", "plaid").in("external_id", dupTxnIds.slice(i, i + 200));
+  }
   const posted = store.filter((t) => !t.pending && t.amount !== 0 && t.date && !skipAccounts.has(t.accountId) && !dismissed.has(t.id));
   if (posted.length === 0) return 0;
 

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncPlaidIntoCashFlow } from "./plaid-cash-flow";
+import { findDuplicateAccounts } from "./account-dedupe";
 
 // Plaid bank connections (balances-first, read-only). Server-only: the access token
 // never leaves the service-role tables, and everything is gated by the bank_connect
@@ -243,11 +244,16 @@ export type BankAccountRow = {
   subtype: string | null;
   balance_current: number | null;
   balance_available: number | null;
+  official_name?: string | null;
+  duplicate_of?: string | null; // set when the same account is already linked via another connection
 };
 
 export type BankStatus = {
   configured: boolean;
-  connections: Array<{ itemId: string; institution: string | null; lastSyncedAt: string | null; lastError: string | null }>;
+  connections: Array<{
+    itemId: string; institution: string | null; lastSyncedAt: string | null; lastError: string | null;
+    accountCount: number; duplicateCount: number; // duplicateCount === accountCount → safe to unlink
+  }>;
   accounts: BankAccountRow[];
 };
 
@@ -259,12 +265,18 @@ export async function getBankStatus(userId: string): Promise<BankStatus> {
     const admin = createAdminClient();
     const [{ data: conns }, { data: accts }] = await Promise.all([
       admin.from("bank_connections").select("item_id, institution_name, last_synced_at, last_error").eq("user_id", userId),
-      admin.from("bank_accounts").select("account_id, item_id, name, mask, type, subtype, balance_current, balance_available").eq("user_id", userId).order("name"),
+      admin.from("bank_accounts").select("account_id, item_id, name, official_name, mask, type, subtype, balance_current, balance_available").eq("user_id", userId).order("name"),
     ]);
-    base.connections = (conns ?? []).map((c) => ({
-      itemId: c.item_id, institution: c.institution_name ?? null, lastSyncedAt: c.last_synced_at ?? null, lastError: c.last_error ?? null,
-    }));
-    base.accounts = (accts ?? []) as BankAccountRow[];
+    const accounts = (accts ?? []) as BankAccountRow[];
+    const dupOf = findDuplicateAccounts(accounts, new Map((conns ?? []).map((c) => [c.item_id as string, (c.last_synced_at as string | null) ?? null])));
+    base.accounts = accounts.map((a) => ({ ...a, duplicate_of: dupOf.get(a.account_id) ?? null }));
+    base.connections = (conns ?? []).map((c) => {
+      const mine = base.accounts.filter((a) => a.item_id === c.item_id);
+      return {
+        itemId: c.item_id, institution: c.institution_name ?? null, lastSyncedAt: c.last_synced_at ?? null, lastError: c.last_error ?? null,
+        accountCount: mine.length, duplicateCount: mine.filter((a) => a.duplicate_of).length,
+      };
+    });
   } catch { /* tables may not exist yet */ }
   return base;
 }
@@ -277,6 +289,7 @@ export async function getBankTotals(userId: string): Promise<{ assets: number; l
     const { accounts } = await getBankStatus(userId);
     let assets = 0, liabilities = 0;
     for (const a of accounts) {
+      if (a.duplicate_of) continue;
       const bal = Number(a.balance_current ?? 0);
       if (!Number.isFinite(bal)) continue;
       if (a.type === "credit" || a.type === "loan") liabilities += bal;

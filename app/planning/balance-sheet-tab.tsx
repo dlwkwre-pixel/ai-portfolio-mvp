@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { BalanceSheetItem, NetWorthSnapshot } from "./planning-actions";
 import { addBalanceSheetItem, deleteBalanceSheetItem } from "./planning-actions";
+import LinkedDuplicatesReview from "./linked-duplicates-review";
 import {
   fmt, fmtFull,
   computeAssetBuckets, computeTaxBuckets, accountTypeTaxBucket, taxDiversificationInsight,
@@ -250,6 +251,7 @@ export default function BalanceSheetOS({
 
       {/* Zone 3 — Lists + Net Worth */}
       <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", animationDelay: "160ms" }}>
+        <LinkedDuplicatesReview balanceItems={balanceItems} portfolioAccounts={portfolioAccounts} isPrivate={isPrivate} />
         <div style={{ marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
             <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Assets</span>
