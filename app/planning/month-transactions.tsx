@@ -176,7 +176,9 @@ export default function MonthTransactions({
 
       {unsortedOut.length > 0 && (
         <div style={{ fontSize: "var(--text-xs)", color: "var(--amber)", background: "var(--amber-bg)", borderRadius: "var(--radius-sm)", padding: "8px 10px", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-          {unsortedOut.length} transaction{unsortedOut.length !== 1 ? "s" : ""} ({money(totals.unsorted, isPrivate)}) {unsortedOut.length !== 1 ? "aren't" : "isn't"} in a bucket yet, so {unsortedOut.length !== 1 ? "they're" : "it's"} not counted in this month&apos;s spending. Pick a bucket below.
+          {unsortedOut.length === 1
+            ? `1 transaction (${money(totals.unsorted, isPrivate)}) isn't in a bucket yet, so it's not counted in this month's spending. Pick a bucket below.`
+            : `${unsortedOut.length} transactions (${money(totals.unsorted, isPrivate)}) aren't in a bucket yet, so they're not counted in this month's spending. Pick a bucket below.`}
         </div>
       )}
 

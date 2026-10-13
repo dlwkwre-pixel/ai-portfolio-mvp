@@ -343,12 +343,12 @@ export default function TransactionImportPanel({
 
           {stats.income > 0 && (
             <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-              Income set to <strong>Pay from…</strong> replaces your expected income for that month. Income left as <strong>Extra, one-time</strong> is added on top, so make sure paychecks aren&apos;t left as extra.
+              Income set to <strong>Pay from…</strong> replaces your expected income for that month. Income left as <strong>Extra, one-time</strong>{" "}is added on top, so make sure paychecks aren&apos;t left as extra.
             </p>
           )}
           {stats.needs > 0 && (
             <p style={{ fontSize: "var(--text-xs)", color: "var(--amber)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-              {stats.needs} transaction{stats.needs !== 1 ? "s" : ""} without a bucket will be saved as unsorted. Unsorted spending isn&apos;t counted in your budget until you sort it.
+              {stats.needs} transaction{stats.needs !== 1 ? "s" : ""}{" "}without a bucket will be saved as unsorted. Unsorted spending isn&apos;t counted in your budget until you sort it.
             </p>
           )}
 

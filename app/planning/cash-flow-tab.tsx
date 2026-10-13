@@ -1105,7 +1105,9 @@ export default function CashFlowOS({
       );
       const actual = actualItems.reduce((s, a) => s + a.actual_amount, 0);
       return { ...cat, items, budgeted, actual };
-    }).filter(c => c.budgeted > 0).sort((a, b) => b.budgeted - a.budgeted);
+    // Keep categories with spending but a $0 budget (e.g. a line created from an import) —
+    // unplanned spending is exactly what Budget vs. Actual needs to show.
+    }).filter(c => c.budgeted > 0 || c.actual !== 0).sort((a, b) => b.budgeted - a.budgeted || b.actual - a.actual);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cashFlowItems, expenseActuals, budgetHistory, selYear, selMonth]);
 
@@ -1573,7 +1575,9 @@ export default function CashFlowOS({
           {/* What this month's income figure is made of — the plan, or what was recorded. */}
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
             {selIncome.recordedCount === 0
-              ? `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
+              ? selIncome.extraCount > 0
+                ? `Using expected pay for ${MONTH_NAMES[selMonth - 1]} (no paychecks recorded).`
+                : `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
               : selIncome.status === "in-progress" && selIncome.recordedRegular < selIncome.regular
                 ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}). Counting the expected amount until the month's pay is in.`
                 : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}), used in place of expected pay.`}
@@ -1771,9 +1775,9 @@ export default function CashFlowOS({
                       </span>
                     </div>
                     <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "9px", overflow: "hidden" }}>
-                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(utilPct, 100)}%`, borderRadius: "3.5px", background: col }} />
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${totBudget > 0 ? Math.min(utilPct, 100) : 100}%`, borderRadius: "3.5px", background: col }} />
                     </div>
-                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-body)" }}>{utilPct}% of budget used · {logged.length} categor{logged.length === 1 ? "y" : "ies"} logged</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-body)" }}>{totBudget > 0 ? `${utilPct}% of budget used` : "No budget set for these categories yet. Add one in Edit my plan"} · {logged.length} categor{logged.length === 1 ? "y" : "ies"} with spending</div>
                   </div>
                 );
               })()}
@@ -1976,7 +1980,7 @@ export default function CashFlowOS({
                 ) : (
                   <div>
                     <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "4px" }}>
-                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of this month&apos;s surplus while building the fund, save the rest
+                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong>{" "}of this month&apos;s surplus while building the fund, save the rest
                     </label>
                     <input
                       type="range" min={0} max={100} step={5} value={investPctEdit}
@@ -2057,7 +2061,7 @@ export default function CashFlowOS({
         <CashFlowSankey
           income={effectiveIncome}
           leaves={[
-            ...catData.map((c) => ({ label: c.label, amount: c.budgeted, bucket: bucketForCategory(c.label), color: CF_CAT_COLORS[c.label] ?? "oklch(0.55 0.05 258)" })),
+            ...catData.filter((c) => c.budgeted > 0).map((c) => ({ label: c.label, amount: c.budgeted, bucket: bucketForCategory(c.label), color: CF_CAT_COLORS[c.label] ?? "oklch(0.55 0.05 258)" })),
             ...(monthlySavings > 0 ? [{ label: "Savings", amount: monthlySavings, bucket: "savings" as const, color: "oklch(0.72 0.18 150)" }] : []),
           ]}
           isPrivate={isPrivate}
