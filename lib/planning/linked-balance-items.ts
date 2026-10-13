@@ -29,16 +29,24 @@ export async function getLinkedBalanceItems(userId: string): Promise<LinkedBalan
   if (!userId) return [];
   try {
     const admin = createAdminClient();
-    const { data } = await admin
-      .from("bank_accounts")
-      .select("account_id, item_id, name, mask, type, balance_current")
-      .eq("user_id", userId)
-      .order("name");
+    const [{ data }, { count: portfolioCount }] = await Promise.all([
+      admin.from("bank_accounts")
+        .select("account_id, item_id, name, mask, type, balance_current")
+        .eq("user_id", userId)
+        .order("name"),
+      admin.from("portfolios").select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("status", "active"),
+    ]);
+    // Banks like Robinhood expose brokerage/IRA accounts through Plaid too. When the user
+    // has portfolios, those are already counted (with holdings and the right tax bucket),
+    // so a linked investment account would double-count net worth — skip it.
+    const portfoliosCoverInvestments = (portfolioCount ?? 0) > 0;
     const out: LinkedBalanceItem[] = [];
     let i = 0;
     for (const a of data ?? []) {
       const bal = Number(a.balance_current ?? 0);
       if (!Number.isFinite(bal) || bal === 0) continue;
+      if (portfoliosCoverInvestments && a.type === "investment" && a.item_id !== "manual") continue;
       const map = CATEGORY_BY_TYPE[a.type as string] ?? CATEGORY_BY_TYPE.depository;
       out.push({
         id: `linked:${a.account_id}`,
