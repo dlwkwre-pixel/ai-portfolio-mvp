@@ -14,7 +14,7 @@ import { MONTH_NAMES } from "./planning-shared";
 // variable-pay case: each paycheck goes in as "regular pay" against an income source and
 // replaces that source's expected amount for the month.
 
-type Kind = "income" | "spend" | "refund";
+type Kind = "income" | "spend" | "refund" | "save";
 
 const EXTRA = "__extra__";
 
@@ -84,7 +84,7 @@ export default function AddTransactionForm({
   return (
     <form onSubmit={submit} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
       <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
-        {kind === "income" ? "Add income" : "Add a transaction"} for {MONTH_NAMES[selMonth - 1]} {selYear}
+        {kind === "income" ? "Add income" : kind === "save" ? "Record a move to savings" : "Add a transaction"} for {MONTH_NAMES[selMonth - 1]} {selYear}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "8px" }}>
@@ -95,13 +95,14 @@ export default function AddTransactionForm({
               <option value="income">Income</option>
               <option value="spend">Spending</option>
               <option value="refund">Refund</option>
+              <option value="save">Saved / invested</option>
             </select>
           </label>
         )}
         <label style={labelStyle}>
           What
           <input value={merchant} onChange={(e) => setMerchant(e.target.value)} required maxLength={60}
-            placeholder={kind === "income" ? "e.g. Marketplace sale" : "e.g. Farmers market"} style={fieldStyle} />
+            placeholder={kind === "income" ? "e.g. Marketplace sale" : kind === "save" ? "e.g. Transfer to savings" : "e.g. Farmers market"} style={fieldStyle} />
         </label>
         <label style={labelStyle}>
           Amount
@@ -114,7 +115,11 @@ export default function AddTransactionForm({
         </label>
       </div>
 
-      {kind === "income" ? (
+      {kind === "save" ? (
+        <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+          Money you moved into your own savings or investment account. It counts as saved, not as spending.
+        </p>
+      ) : kind === "income" ? (
         <label style={labelStyle}>
           Counts as
           <select value={incomeBucket} onChange={(e) => setIncomeBucket(e.target.value)} style={fieldStyle}>

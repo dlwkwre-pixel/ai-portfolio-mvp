@@ -8,8 +8,9 @@ import { categoryOf, getCategoryForExpense, normLabel } from "./expense-categori
 //   spend    → stored direction 'out', +amount
 //   refund   → stored direction 'out', −amount (nets against the bucket it came from)
 //   income   → stored direction 'in',  +amount
-//   transfer → not stored (card payments, moves between your own accounts)
-export type TxnKind = "spend" | "refund" | "income" | "transfer";
+//   save     → stored direction 'save', +amount (moved into your own savings/investments)
+//   transfer → not stored (card payments, moves between your own checking accounts)
+export type TxnKind = "spend" | "refund" | "income" | "save" | "transfer";
 
 export type ParsedTxn = {
   date: string;          // YYYY-MM-DD
@@ -28,7 +29,7 @@ export type CashFlowTransaction = {
   description: string;
   merchant: string;
   amount: number;        // signed per the 'out' convention above
-  direction: "in" | "out";
+  direction: "in" | "out" | "save";
   cash_flow_item_id: string | null;
   source: "statement" | "manual" | "plaid";
   import_batch_id: string | null;
@@ -99,6 +100,13 @@ const REFUND_RE = /\b(refund|return|reversal|credit\s+adj|merchant\s+credit|char
 const PAYROLL_RE = /\b(payroll|direct\s*dep(osit)?|dir\s*dep|salary|paycheck|wages?|ppd|net\s*pay)\b/i;
 export function looksLikePayroll(text: string): boolean {
   return PAYROLL_RE.test(text);
+}
+
+// Money leaving checking for the user's own savings or investment account — the actual act
+// of saving. Only meaningful for money OUT (a Robinhood withdrawal back to checking isn't).
+const SAVE_RE = /\b(to\s+savings|transfer\s+to\s+(savings|brokerage|investment|ira|roth|hysa|high\s*yield)|robinhood|fidelity|vanguard|schwab|betterment|wealthfront|acorns|stash|m1\s*finance|e\*?trade|webull|marcus|wealthsimple|sofi\s*invest)\b/i;
+export function looksLikeSave(description: string): boolean {
+  return SAVE_RE.test(description);
 }
 
 export function looksLikeTransfer(description: string): boolean {
@@ -312,7 +320,9 @@ export function parseCsvStatement(text: string, today: string): CsvParseResult |
       else if (/refund|return/.test(r.typeHint)) { isOut = false; typeSaysRefund = true; }
       else if (/credit|deposit|payment/.test(r.typeHint)) isOut = false;
     }
-    const kind: TxnKind = looksLikeTransfer(r.description) || /^payment$/.test(r.typeHint) ? "transfer"
+    // Into your own savings/brokerage = saved; back OUT of it to checking = just a transfer.
+    const kind: TxnKind = looksLikeSave(r.description) ? (isOut ? "save" : "transfer")
+      : looksLikeTransfer(r.description) || /^payment$/.test(r.typeHint) ? "transfer"
       : isOut ? "spend"
       : typeSaysRefund || looksLikeRefund(r.description) ? "refund"
       : "income";
@@ -347,8 +357,8 @@ export function signedAmountFor(t: { amount: number; kind: TxnKind }): number {
   return t.kind === "refund" ? -t.amount : t.amount;
 }
 
-export function directionFor(kind: TxnKind): "in" | "out" {
-  return kind === "income" ? "in" : "out";
+export function directionFor(kind: TxnKind): "in" | "out" | "save" {
+  return kind === "income" ? "in" : kind === "save" ? "save" : "out";
 }
 
 export type DuplicateMatch = { index: number; existingId: string; existingDate: string; existingMerchant: string };
@@ -389,7 +399,7 @@ export function suggestBucket(
   items: BucketItem[],
   rules: MerchantRule[],
 ): string | null {
-  if (t.kind === "transfer") return null;
+  if (t.kind === "transfer" || t.kind === "save") return null;
   const key = merchantKey(t.merchant);
   const rule = rules.find((r) => r.merchant_key === key);
   if (rule && items.some((i) => i.id === rule.cash_flow_item_id)) return rule.cash_flow_item_id;
@@ -532,4 +542,93 @@ export function computeMonthIncome(p: {
     recordedCount,
     status: recordedCount === 0 ? "expected" : isPast ? "recorded" : "in-progress",
   };
+}
+
+// ── Guessed buckets ─────────────────────────────────────────────────────────
+
+// When nothing matches, guess a NEW budget line named after the expense category rather
+// than leaving the row unsorted — the user sees it pre-selected (marked "suggested") and
+// only fixes the wrong ones, instead of picking every row by hand.
+export function guessBucket(
+  t: { merchant: string; kind: TxnKind; category?: string },
+  expenseItems: { id: string; label: string; category?: string | null }[],
+): string | null {
+  if (t.kind !== "spend" && t.kind !== "refund") return null;
+  const cat = t.category ?? getCategoryForExpense(t.merchant);
+  const inCat = expenseItems.filter((i) => categoryOf(i) === cat);
+  if (inCat.length > 0) return (inCat.find((i) => i.label.toLowerCase() === cat.toLowerCase()) ?? inCat[0]).id;
+  return NEW_EXPENSE_BUCKET_PREFIX + cat;
+}
+
+// ── Recurring charges ───────────────────────────────────────────────────────
+
+export type RecurringCharge = {
+  key: string;
+  merchant: string;
+  typical: number;          // median charge
+  latest: number;
+  previous: number | null;  // the last charge at a DIFFERENT price, if any
+  previousDate: string | null;
+  months: number;           // distinct months seen
+  increase: number;         // latest − previous when it went up by ≥ $1 and ≥ 2%, else 0
+  bucketId: string | null;  // bucket of the latest charge
+  lastDate: string;
+};
+
+// Same merchant charged in 3+ different months at a steady amount (every charge within 25%
+// of the median) — subscriptions, phone bill, insurance. Groceries fail the steadiness test.
+export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): RecurringCharge[] {
+  const cutoff = new Date(today.getFullYear(), today.getMonth() - 6, 1).toISOString().slice(0, 10);
+  const groups = new Map<string, CashFlowTransaction[]>();
+  for (const t of txns) {
+    if (t.direction !== "out" || t.amount <= 0 || t.txn_date < cutoff) continue;
+    const k = merchantKey(t.merchant);
+    if (!k) continue;
+    const list = groups.get(k) ?? [];
+    list.push(t);
+    groups.set(k, list);
+  }
+  const out: RecurringCharge[] = [];
+  for (const [key, list] of groups) {
+    // one charge per month: the month's largest (a refund-and-recharge shouldn't double up)
+    const byMonth = new Map<string, CashFlowTransaction>();
+    for (const t of list) {
+      const ym = t.txn_date.slice(0, 7);
+      const cur = byMonth.get(ym);
+      if (!cur || t.amount > cur.amount) byMonth.set(ym, t);
+    }
+    if (byMonth.size < 3) continue;
+    const monthly = Array.from(byMonth.values()).sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+    const amounts = monthly.map((t) => t.amount).sort((a, b) => a - b);
+    const mid = Math.floor(amounts.length / 2);
+    const typical = amounts.length % 2 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2;
+    if (monthly.some((t) => Math.abs(t.amount - typical) > typical * 0.25)) continue;
+    const latest = monthly[monthly.length - 1];
+    // Compare against the last charge at a different price, so "$15.49, $15.49, $17.99,
+    // $17.99" still reports the increase instead of comparing the two $17.99s.
+    const prev = monthly.slice(0, -1).reverse().find((t) => Math.abs(t.amount - latest.amount) >= 0.01) ?? null;
+    const diff = prev ? latest.amount - prev.amount : 0;
+    out.push({
+      key, merchant: latest.merchant, typical: Math.round(typical * 100) / 100,
+      latest: latest.amount, previous: prev?.amount ?? null, previousDate: prev?.txn_date ?? null, months: byMonth.size,
+      increase: prev && diff >= 1 && diff >= prev.amount * 0.02 ? Math.round(diff * 100) / 100 : 0,
+      bucketId: latest.cash_flow_item_id, lastDate: latest.txn_date,
+    });
+  }
+  return out.sort((a, b) => b.increase - a.increase || b.typical - a.typical);
+}
+
+// ── Variable income ─────────────────────────────────────────────────────────
+
+// Recorded pay per COMPLETED month for one income source, newest first.
+export function recordedIncomeByMonth(txns: CashFlowTransaction[], sourceId: string, today: Date): number[] {
+  const nowKey = today.getFullYear() * 12 + today.getMonth();
+  const byMonth = new Map<number, number>();
+  for (const t of txns) {
+    if (t.direction !== "in" || t.cash_flow_item_id !== sourceId) continue;
+    const k = t.period_year * 12 + (t.period_month - 1);
+    if (k >= nowKey) continue;
+    byMonth.set(k, (byMonth.get(k) ?? 0) + t.amount);
+  }
+  return Array.from(byMonth.entries()).sort((a, b) => b[0] - a[0]).map(([, v]) => v);
 }

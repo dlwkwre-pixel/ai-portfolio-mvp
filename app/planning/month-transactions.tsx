@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual } from "./planning-actions";
-import { updateTransactionBucket, deleteTransaction, deleteExpenseActual } from "./planning-actions";
-import { NEW_PAYCHECK_BUCKET, type CashFlowTransaction } from "@/lib/planning/transactions";
+import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets } from "./planning-actions";
+import { NEW_PAYCHECK_BUCKET, guessBucket, type CashFlowTransaction } from "@/lib/planning/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { MONTH_NAMES } from "./planning-shared";
@@ -13,7 +13,7 @@ import { MONTH_NAMES } from "./planning-shared";
 // Re-bucketing here is the one place to move a merchant; with "remember" on, it moves the
 // same merchant's other transactions this month and every future import too.
 
-type Filter = "unsorted" | "spending" | "income" | "all";
+type Filter = "unsorted" | "spending" | "income" | "saved" | "all";
 
 const PAGE = 30;
 
@@ -48,6 +48,7 @@ export default function MonthTransactions({
   const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState<{ text: string; tone: "ok" | "err" } | null>(null);
   const [adding, setAdding] = useState(false);
+  const [scope, setScope] = useState<"month" | "all">("month");
 
   const month = useMemo(
     () => transactions.filter((t) => t.period_year === selYear && t.period_month === selMonth)
@@ -66,15 +67,20 @@ export default function MonthTransactions({
     out: month.filter((t) => t.direction === "out").reduce((s, t) => s + t.amount, 0),
     in: month.filter((t) => t.direction === "in").reduce((s, t) => s + t.amount, 0),
     unsorted: unsortedOut.reduce((s, t) => s + t.amount, 0),
+    saved: month.filter((t) => t.direction === "save").reduce((s, t) => s + t.amount, 0),
   };
 
   // Default to the work that needs doing; fall back to everything once it's sorted.
   const activeFilter: Filter = filter ?? (unsortedOut.length > 0 ? "unsorted" : "all");
   const q = query.trim().toLowerCase();
-  const filtered = month.filter((t) => {
+  // "All months" search answers "how much at Costco this year?" across everything loaded.
+  const searchAll = scope === "all" && q.length > 0;
+  const base = searchAll ? transactions.slice().sort((a, b) => b.txn_date.localeCompare(a.txn_date)) : month;
+  const filtered = base.filter((t) => {
     if (activeFilter === "unsorted" && !(t.direction === "out" && !t.cash_flow_item_id)) return false;
     if (activeFilter === "spending" && t.direction !== "out") return false;
     if (activeFilter === "income" && t.direction !== "in") return false;
+    if (activeFilter === "saved" && t.direction !== "save") return false;
     if (q && !t.merchant.toLowerCase().includes(q) && !t.description.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -96,6 +102,23 @@ export default function MonthTransactions({
           : `Moved ${t.merchant} to ${dest}${remember && value ? ". Future imports will do the same" : ""}.`,
         tone: "ok",
       });
+      router.refresh();
+    });
+  }
+
+  // One tap for the whole unsorted pile: our category guess for each (an existing budget
+  // line in that category, else a new one), remembered for future imports.
+  function handleSortAll() {
+    const assignments = unsortedOut
+      .map((t) => ({ id: t.id, bucket: guessBucket({ merchant: t.merchant, kind: t.amount < 0 ? "refund" : "spend" }, expenseItems) }))
+      .filter((a): a is { id: string; bucket: string } => !!a.bucket);
+    if (assignments.length === 0) return;
+    setNotice(null);
+    startTransition(async () => {
+      const res = await bulkSetTransactionBuckets(assignments);
+      if (res.error) { setNotice({ text: res.error, tone: "err" }); return; }
+      setNotice({ text: `Sorted ${res.updated ?? 0} transaction${res.updated === 1 ? "" : "s"}. Change any that look wrong below.`, tone: "ok" });
+      setFilter("all");
       router.refresh();
     });
   }
@@ -171,14 +194,21 @@ export default function MonthTransactions({
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "flex", gap: "10px" }}>
           <span>Out <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{money(totals.out, isPrivate)}</span></span>
           <span>In <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{money(totals.in, isPrivate)}</span></span>
+          {totals.saved > 0 && <span>Saved <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{money(totals.saved, isPrivate)}</span></span>}
         </span>
       </div>
 
       {unsortedOut.length > 0 && (
         <div style={{ fontSize: "var(--text-xs)", color: "var(--amber)", background: "var(--amber-bg)", borderRadius: "var(--radius-sm)", padding: "8px 10px", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-          {unsortedOut.length === 1
-            ? `1 transaction (${money(totals.unsorted, isPrivate)}) isn't in a bucket yet, so it's not counted in this month's spending. Pick a bucket below.`
-            : `${unsortedOut.length} transactions (${money(totals.unsorted, isPrivate)}) aren't in a bucket yet, so they're not counted in this month's spending. Pick a bucket below.`}
+          <div>
+            {unsortedOut.length === 1
+              ? `1 transaction (${money(totals.unsorted, isPrivate)}) isn't in a bucket yet, so it's not counted in this month's spending.`
+              : `${unsortedOut.length} transactions (${money(totals.unsorted, isPrivate)}) aren't in a bucket yet, so they're not counted in this month's spending.`}
+          </div>
+          <button type="button" onClick={handleSortAll} disabled={pending}
+            style={{ marginTop: "6px", minHeight: "32px", padding: "0 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--amber)", background: "var(--bg-surface)", color: "var(--amber)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer" }}>
+            Sort all with suggestions
+          </button>
         </div>
       )}
 
@@ -187,6 +217,7 @@ export default function MonthTransactions({
           ["unsorted", `Unsorted (${unsortedOut.length})`],
           ["spending", "Spending"],
           ["income", "Income"],
+          ...(totals.saved > 0 || filter === "saved" ? [["saved", "Saved"] as [Filter, string]] : []),
           ["all", "All"],
         ] as [Filter, string][]).map(([f, label]) => (
           <button key={f} type="button" onClick={() => { setFilter(f); setShowAll(false); }}
@@ -202,6 +233,11 @@ export default function MonthTransactions({
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search merchant"
           aria-label="Search transactions"
           style={{ ...selectStyle, width: "auto", flex: "1 1 140px", maxWidth: "220px" }} />
+        <select value={scope} onChange={(e) => { setScope(e.target.value as "month" | "all"); setShowAll(false); }} aria-label="Search range"
+          style={{ ...selectStyle, width: "auto" }}>
+          <option value="month">This month</option>
+          <option value="all">All months</option>
+        </select>
       </div>
 
       <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", cursor: "pointer" }}>
@@ -214,6 +250,16 @@ export default function MonthTransactions({
 
       {notice && (
         <div role="status" style={{ fontSize: "var(--text-xs)", color: notice.tone === "ok" ? "var(--green)" : "var(--red)", fontFamily: "var(--font-body)" }}>{notice.text}</div>
+      )}
+
+      {searchAll && (
+        <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+          {`${filtered.length} match${filtered.length !== 1 ? "es" : ""} for "${query.trim()}" across all months · `}
+          <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
+            {money(filtered.filter((t) => t.direction === "out").reduce((sum, t) => sum + t.amount, 0), isPrivate)}
+          </span>
+          {" spent"}
+        </div>
       )}
 
       <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", opacity: pending ? 0.7 : 1, transition: "opacity 0.15s" }}>
@@ -238,8 +284,11 @@ export default function MonthTransactions({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "52px minmax(0, 1fr) 36px", gap: "6px", alignItems: "center" }}>
                 <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-                  {MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}
+                  {`${MONTH_NAMES[t.period_month - 1]} ${Number(t.txn_date.slice(8, 10))}${searchAll && t.period_year !== selYear ? ` '${String(t.period_year).slice(2)}` : ""}`}
                 </span>
+                {t.direction === "save" ? (
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Saved / invested</span>
+                ) : (
                 <select value={t.cash_flow_item_id ?? ""} disabled={pending} onChange={(e) => handleBucket(t, e.target.value)} aria-label={`Bucket for ${t.merchant}`}
                   style={{ ...selectStyle, borderColor: t.direction === "out" && !t.cash_flow_item_id ? "var(--amber)" : "var(--border-subtle)", color: t.cash_flow_item_id ? "var(--text-primary)" : t.direction === "out" ? "var(--amber)" : "var(--text-secondary)" }}>
                   <option value="">{t.direction === "in" ? "Extra, one-time" : "Needs a bucket"}</option>
@@ -257,6 +306,7 @@ export default function MonthTransactions({
                     </optgroup>
                   )}
                 </select>
+                )}
                 <button type="button" onClick={() => handleDelete(t)} disabled={pending} aria-label={`Delete ${t.merchant}`} title="Delete this transaction"
                   style={{ minWidth: "36px", minHeight: "32px", borderRadius: "var(--radius-sm)", background: "transparent", border: "1px solid var(--border-subtle)", color: "var(--text-tertiary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>

@@ -8,6 +8,7 @@ import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot
 import { ageFromDob } from "./planning-utils";
 import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import { rollupTransactionActuals, type CashFlowTransaction } from "@/lib/planning/transactions";
+import type { MonthCloseRow } from "./month-close-card";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -52,6 +53,7 @@ export default async function PlanningPage({
     { data: estateProfileData },
     { data: budgetHistoryData },
     { data: transactionsData },
+    { data: monthClosesData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -75,6 +77,12 @@ export default async function PlanningPage({
       .gte("txn_date", transactionWindowStart())
       .order("txn_date", { ascending: false })
       .limit(8000),
+    // Missing table (migration not run yet) just yields null → no closed months.
+    supabase.from("cash_flow_month_closes")
+      .select("period_year, period_month, income, spending, saved, closed_at")
+      .eq("user_id", user.id)
+      .order("period_year", { ascending: false })
+      .limit(36),
   ]);
 
   // Value each portfolio on its own so the balance sheet can classify it by account type
@@ -322,6 +330,15 @@ export default async function PlanningPage({
       }
     : null;
 
+  const typedMonthCloses: MonthCloseRow[] = (monthClosesData ?? []).map((r) => ({
+    period_year: r.period_year,
+    period_month: r.period_month,
+    income: Number(r.income),
+    spending: Number(r.spending),
+    saved: Number(r.saved),
+    closed_at: r.closed_at,
+  }));
+
   const typedTransactions: CashFlowTransaction[] = (transactionsData ?? []).map((r) => ({
     ...r,
     amount: Number(r.amount),
@@ -412,6 +429,7 @@ export default async function PlanningPage({
           apartmentListings={typedApartmentListings}
           expenseActuals={typedExpenseActuals}
           transactions={typedTransactions}
+          monthCloses={typedMonthCloses}
           budgetHistory={typedBudgetHistory}
           estateProfile={typedEstateProfile}
           initialTab={initialTab}

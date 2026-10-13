@@ -1243,14 +1243,14 @@ async function resolveBuckets(
 export async function saveImportedTransactions(input: {
   rows: SaveTxnRow[];
   remember: { merchant: string; bucket: string }[];
-}): Promise<{ error?: string; inserted?: number; batchId?: string }> {
+}): Promise<{ error?: string; inserted?: number; batchId?: string; skippedSaves?: number }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
   const rows = (Array.isArray(input?.rows) ? input.rows : []).slice(0, 2000).filter((r) =>
     /^\d{4}-\d{2}-\d{2}$/.test(String(r.date)) && Number.isFinite(Number(r.amount)) && Number(r.amount) > 0 &&
-    ["spend", "refund", "income"].includes(r.kind));
+    ["spend", "refund", "income", "save"].includes(r.kind));
   if (rows.length === 0) return { error: "Nothing to save." };
 
   const bucketValues = Array.from(new Set([
@@ -1270,14 +1270,21 @@ export async function saveImportedTransactions(input: {
       description: String(r.description ?? "").slice(0, 200) || String(r.merchant ?? "").slice(0, 200) || "Transaction",
       merchant: String(r.merchant ?? "").trim().slice(0, 60) || "Unknown",
       amount: r.kind === "refund" ? -amount : amount,
-      direction: r.kind === "income" ? "in" : "out",
-      cash_flow_item_id: r.bucket ? resolved.get(r.bucket) ?? null : null,
+      direction: r.kind === "income" ? "in" : r.kind === "save" ? "save" : "out",
+      cash_flow_item_id: r.kind === "save" ? null : r.bucket ? resolved.get(r.bucket) ?? null : null,
       source: "statement",
       import_batch_id: batchId,
     };
   });
 
-  const { error } = await supabase.from("cash_flow_transactions").insert(records);
+  let saved = records;
+  let { error } = await supabase.from("cash_flow_transactions").insert(records);
+  // 23514 = check violation: the 'save' direction migration (supabase/cash-flow-saved-and-month-close.sql)
+  // hasn't been run yet. Keep the rest of the import rather than failing all of it.
+  if (error?.code === "23514" && records.some((r) => r.direction === "save")) {
+    saved = records.filter((r) => r.direction !== "save");
+    ({ error } = saved.length > 0 ? await supabase.from("cash_flow_transactions").insert(saved) : { error: null });
+  }
   if (error) return { error: error.message };
 
   const ruleRows = (input.remember ?? [])
@@ -1292,7 +1299,7 @@ export async function saveImportedTransactions(input: {
 
   void awardXp(user.id, "budget_logged", dailyKey("budget_logged"));
   revalidatePath("/planning");
-  return { inserted: records.length, batchId };
+  return { inserted: saved.length, batchId, skippedSaves: records.length - saved.length };
 }
 
 // Re-buckets one transaction. With remember=true it also saves a merchant rule and moves
@@ -1360,9 +1367,9 @@ export async function addManualTransaction(input: {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Pick a date." };
   if (!merchant) return { error: "Add a description." };
   if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter an amount greater than 0." };
-  if (!["spend", "refund", "income"].includes(input.kind)) return { error: "Invalid type." };
+  if (!["spend", "refund", "income", "save"].includes(input.kind)) return { error: "Invalid type." };
 
-  const itemId = input.bucket ? (await resolveBuckets(supabase, user.id, [input.bucket])).get(input.bucket) ?? null : null;
+  const itemId = input.kind !== "save" && input.bucket ? (await resolveBuckets(supabase, user.id, [input.bucket])).get(input.bucket) ?? null : null;
   const { error } = await supabase.from("cash_flow_transactions").insert({
     user_id: user.id,
     txn_date: date,
@@ -1371,11 +1378,133 @@ export async function addManualTransaction(input: {
     description: merchant,
     merchant,
     amount: input.kind === "refund" ? -amount : amount,
-    direction: input.kind === "income" ? "in" : "out",
+    direction: input.kind === "income" ? "in" : input.kind === "save" ? "save" : "out",
     cash_flow_item_id: itemId,
     source: "manual",
     note: input.note ? String(input.note).slice(0, 200) : null,
   });
+  if (error?.code === "23514" && input.kind === "save") {
+    return { error: "Saving moves need a quick database update first (supabase/cash-flow-saved-and-month-close.sql)." };
+  }
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// "Paid ✓" for a planned bill: records one transaction at the amount given (defaults to the
+// budget) in the chosen month, so fixed bills become real numbers in one tap instead of
+// being silently assumed. Also marks the bill paid for the "still owed" list when it has a
+// due day.
+export async function recordBillPaid(
+  itemId: string,
+  year: number,
+  month: number,
+  amount: number,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return { error: "Invalid month." };
+  const amt = Math.round(Number(amount) * 100) / 100;
+  if (!Number.isFinite(amt) || amt <= 0) return { error: "Enter an amount greater than 0." };
+
+  const { data: item } = await supabase
+    .from("cash_flow_items").select("id, label, type, due_day, last_paid_for_date")
+    .eq("id", itemId).eq("user_id", user.id).maybeSingle();
+  if (!item || item.type !== "expense") return { error: "Budget item not found." };
+
+  const lastDay = new Date(year, month, 0).getDate();
+  const now = new Date();
+  const isCurrent = now.getFullYear() === year && now.getMonth() + 1 === month;
+  const day = item.due_day != null ? Math.min(item.due_day, lastDay) : isCurrent ? now.getDate() : 1;
+  const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  const { error } = await supabase.from("cash_flow_transactions").insert({
+    user_id: user.id, txn_date: date, period_year: year, period_month: month,
+    description: item.label, merchant: item.label, amount: amt, direction: "out",
+    cash_flow_item_id: item.id, source: "manual",
+  });
+  if (error) return { error: error.message };
+
+  if (item.due_day != null && (!item.last_paid_for_date || item.last_paid_for_date < date)) {
+    await supabase.from("cash_flow_items")
+      .update({ last_paid_for_date: date, updated_at: new Date().toISOString() })
+      .eq("id", item.id).eq("user_id", user.id);
+  }
+  revalidatePath("/planning");
+  return {};
+}
+
+// "Sort all with suggestions" — applies the suggested bucket to many unsorted transactions
+// at once and remembers each merchant for future imports.
+export async function bulkSetTransactionBuckets(
+  assignments: { id: string; bucket: string }[],
+): Promise<{ error?: string; updated?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const list = (Array.isArray(assignments) ? assignments : []).slice(0, 500)
+    .filter((a) => typeof a?.id === "string" && typeof a?.bucket === "string" && a.bucket.length > 0);
+  if (list.length === 0) return { updated: 0 };
+
+  const resolved = await resolveBuckets(supabase, user.id, Array.from(new Set(list.map((a) => a.bucket))));
+  const { data: txns } = await supabase
+    .from("cash_flow_transactions").select("id, merchant")
+    .eq("user_id", user.id).in("id", list.map((a) => a.id));
+  const merchantById = new Map((txns ?? []).map((t) => [t.id, t.merchant as string]));
+
+  const byItem = new Map<string, string[]>();
+  for (const a of list) {
+    const itemId = resolved.get(a.bucket);
+    if (!itemId || !merchantById.has(a.id)) continue;
+    byItem.set(itemId, [...(byItem.get(itemId) ?? []), a.id]);
+  }
+  let updated = 0;
+  for (const [itemId, ids] of byItem) {
+    const { error } = await supabase.from("cash_flow_transactions")
+      .update({ cash_flow_item_id: itemId, updated_at: new Date().toISOString() })
+      .in("id", ids).eq("user_id", user.id);
+    if (error) return { error: error.message };
+    updated += ids.length;
+    const rules = Array.from(new Set(ids.map((id) => merchantKey(merchantById.get(id) ?? "")).filter(Boolean)))
+      .map((merchant_key) => ({ user_id: user.id, merchant_key, cash_flow_item_id: itemId, updated_at: new Date().toISOString() }));
+    if (rules.length > 0) await supabase.from("cash_flow_merchant_rules").upsert(rules, { onConflict: "user_id,merchant_key" });
+  }
+  revalidatePath("/planning");
+  return { updated };
+}
+
+// Monthly close-out: snapshot of the month when the user finished reviewing it.
+export async function closeCashFlowMonth(input: {
+  year: number; month: number; income: number; spending: number; saved: number;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const { year, month } = input;
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return { error: "Invalid month." };
+  const num = (v: unknown) => (Number.isFinite(Number(v)) ? Math.round(Number(v) * 100) / 100 : 0);
+  const { error } = await supabase.from("cash_flow_month_closes").upsert({
+    user_id: user.id, period_year: year, period_month: month,
+    income: num(input.income), spending: num(input.spending), saved: num(input.saved),
+    closed_at: new Date().toISOString(),
+  }, { onConflict: "user_id,period_year,period_month" });
+  if (error) {
+    return { error: error.code === "42P01" || /cash_flow_month_closes/.test(error.message)
+      ? "Closing months needs a quick database update first (supabase/cash-flow-saved-and-month-close.sql)."
+      : error.message };
+  }
+  void awardXp(user.id, "budget_logged", dailyKey("budget_logged"));
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function reopenCashFlowMonth(year: number, month: number): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const { error } = await supabase.from("cash_flow_month_closes").delete()
+    .eq("user_id", user.id).eq("period_year", year).eq("period_month", month);
   if (error) return { error: error.message };
   revalidatePath("/planning");
   return {};

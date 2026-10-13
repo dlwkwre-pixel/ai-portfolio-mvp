@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import type { CashFlowItem } from "./planning-actions";
 import { saveImportedTransactions } from "./planning-actions";
 import type { ReviewTxn, ParseTransactionsResponse } from "@/app/api/planning/transactions/parse/route";
-import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
+import { merchantKey, guessBucket, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { Button, Chip } from "@/app/components/ui-primitives";
 import { MONTH_NAMES } from "./planning-shared";
@@ -20,16 +20,18 @@ type Row = ReviewTxn & {
   include: boolean;
   bucket: string | null;   // item id, "new:<Category>", or null
   touched: boolean;        // user picked this bucket themselves
+  guessed: boolean;        // bucket is our category guess, not a known match — shown as "suggested"
 };
 
 type Filter = "all" | "needs" | "dupes" | "skipped";
 
-export type ImportSavedSummary = { inserted: number; batchId: string; months: string[] };
+export type ImportSavedSummary = { inserted: number; batchId: string; months: string[]; skippedSaves?: number };
 
 const KIND_LABEL: Record<TxnKind, string> = {
   spend: "Spending",
   refund: "Refund",
   income: "Income",
+  save: "Saved / invested",
   transfer: "Transfer (skip)",
 };
 
@@ -105,13 +107,17 @@ export default function TransactionImportPanel({
       }
       setParser(data.parser ?? "csv");
       setWarnings(data.warnings ?? []);
-      setRows(data.transactions.map((t, key) => ({
-        ...t,
-        key,
-        include: !t.duplicateOf && t.kind !== "transfer",
-        bucket: t.suggestedItemId,
-        touched: false,
-      })));
+      setRows(data.transactions.map((t, key) => {
+        const guess = t.suggestedItemId ? null : guessBucket(t, expenseItems);
+        return {
+          ...t,
+          key,
+          include: !t.duplicateOf && t.kind !== "transfer",
+          bucket: t.suggestedItemId ?? guess,
+          touched: false,
+          guessed: !!guess,
+        };
+      }));
       setFilter("all");
     } catch {
       setError("Network error. Check your connection and try again.");
@@ -129,8 +135,8 @@ export default function TransactionImportPanel({
   function setBucket(row: Row, bucket: string | null) {
     const k = merchantKey(row.merchant);
     setRows((prev) => prev && prev.map((r) => {
-      if (r.key === row.key) return { ...r, bucket, touched: true };
-      if (!r.touched && r.kind === row.kind && merchantKey(r.merchant) === k) return { ...r, bucket };
+      if (r.key === row.key) return { ...r, bucket, touched: true, guessed: false };
+      if (!r.touched && r.kind === row.kind && merchantKey(r.merchant) === k) return { ...r, bucket, guessed: false };
       return r;
     }));
   }
@@ -140,7 +146,8 @@ export default function TransactionImportPanel({
     patchRow(row.key, {
       kind,
       include: kind === "transfer" ? false : row.include || row.kind === "transfer",
-      bucket: typeChanged ? null : row.bucket,
+      bucket: typeChanged || kind === "save" ? null : row.bucket,
+      guessed: typeChanged || kind === "save" ? false : row.guessed,
     });
   }
 
@@ -171,7 +178,7 @@ export default function TransactionImportPanel({
     if (res.error || !res.batchId) { setError(res.error ?? "Couldn't save."); return; }
     const months = Array.from(new Set(chosen.map((r) => r.date.slice(0, 7)))).sort()
       .map((ym) => `${MONTH_NAMES[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`);
-    onSaved({ inserted: res.inserted ?? chosen.length, batchId: res.batchId, months });
+    onSaved({ inserted: res.inserted ?? chosen.length, batchId: res.batchId, months, skippedSaves: res.skippedSaves });
   }
 
   // ── Derived review stats ──
@@ -184,8 +191,10 @@ export default function TransactionImportPanel({
       included,
       dupes: rows.filter((r) => r.duplicateOf).length,
       transfers: rows.filter((r) => r.kind === "transfer").length,
-      needs: included.filter((r) => !r.bucket && r.kind !== "income").length,
-      spent: included.filter((r) => r.kind !== "income").reduce((s, r) => s + (r.kind === "refund" ? -r.amount : r.amount), 0),
+      needs: included.filter((r) => !r.bucket && (r.kind === "spend" || r.kind === "refund")).length,
+      guessed: included.filter((r) => r.guessed && !r.touched && (r.kind === "spend" || r.kind === "refund")).length,
+      saved: included.filter((r) => r.kind === "save").reduce((s, r) => s + r.amount, 0),
+      spent: included.filter((r) => r.kind === "spend" || r.kind === "refund").reduce((s, r) => s + (r.kind === "refund" ? -r.amount : r.amount), 0),
       income: included.filter((r) => r.kind === "income").reduce((s, r) => s + r.amount, 0),
       first: rows[0]?.date, last: rows[rows.length - 1]?.date,
       months: Array.from(byMonth.entries()).sort(([a], [b]) => a.localeCompare(b)),
@@ -193,7 +202,7 @@ export default function TransactionImportPanel({
   }, [rows]);
 
   const visible = rows?.filter((r) =>
-    filter === "needs" ? r.include && r.kind !== "transfer" && r.kind !== "income" && !r.bucket
+    filter === "needs" ? r.include && (r.kind === "spend" || r.kind === "refund") && !r.bucket
     : filter === "dupes" ? !!r.duplicateOf
     : filter === "skipped" ? !r.include || r.kind === "transfer"
     : true) ?? [];
@@ -246,6 +255,7 @@ export default function TransactionImportPanel({
             <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <span>Out: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{money(stats.spent, isPrivate)}</span></span>
               <span>In: <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{money(stats.income, isPrivate)}</span></span>
+              {stats.saved > 0 && <span>Saved: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{money(stats.saved, isPrivate)}</span></span>}
               {stats.months.length > 1 && (
                 <span>Split by date: {stats.months.map(([ym, n]) => `${MONTH_NAMES[Number(ym.slice(5, 7)) - 1]} (${n})`).join(", ")}</span>
               )}
@@ -303,6 +313,9 @@ export default function TransactionImportPanel({
                           {r.merchant}
                         </span>
                         {r.duplicateOf && <Chip tone="brand">Already imported {shortDate(r.duplicateOf.date)}</Chip>}
+                        {r.guessed && !r.touched && saving_ && (r.kind === "spend" || r.kind === "refund") && (
+                          <span style={{ fontSize: "var(--text-2xs)", color: "var(--brand-blue)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>suggested</span>
+                        )}
                       </div>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: r.kind === "income" ? "var(--green)" : "var(--text-primary)", whiteSpace: "nowrap" }}>
                         {r.kind === "income" ? "+" : r.kind === "refund" ? "−" : ""}{money(r.amount, isPrivate)}
@@ -313,11 +326,13 @@ export default function TransactionImportPanel({
                       <select value={r.kind} onChange={(e) => setKind(r, e.target.value as TxnKind)} aria-label="Type" style={fieldStyle}>
                         {(Object.keys(KIND_LABEL) as TxnKind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
                       </select>
-                      {r.kind === "transfer" ? (
-                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Not spending or income</span>
+                      {r.kind === "transfer" || r.kind === "save" ? (
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                          {r.kind === "save" ? "Counts as saved, not spending" : "Not spending or income"}
+                        </span>
                       ) : (
                         <select value={r.bucket ?? ""} onChange={(e) => setBucket(r, e.target.value || null)} aria-label="Budget bucket"
-                          style={{ ...fieldStyle, borderColor: !r.bucket && saving_ && r.kind !== "income" ? "var(--amber)" : "var(--border-subtle)", color: r.bucket || r.kind === "income" ? "var(--text-primary)" : "var(--amber)" }}>
+                          style={{ ...fieldStyle, borderStyle: r.guessed && !r.touched ? "dashed" : "solid", borderColor: !r.bucket && saving_ && r.kind !== "income" ? "var(--amber)" : r.guessed && !r.touched ? "var(--brand-blue)" : "var(--border-subtle)", color: r.bucket || r.kind === "income" ? "var(--text-primary)" : "var(--amber)" }}>
                           <option value="">{r.kind === "income" ? "Extra, one-time" : "Needs a bucket"}</option>
                           {bucketPool.length > 0 && (
                             <optgroup label={r.kind === "income" ? "Regular pay (replaces expected)" : "Your budget"}>
@@ -344,6 +359,11 @@ export default function TransactionImportPanel({
           {stats.income > 0 && (
             <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
               Income set to <strong>Pay from…</strong> replaces your expected income for that month. Income left as <strong>Extra, one-time</strong>{" "}is added on top, so make sure paychecks aren&apos;t left as extra.
+            </p>
+          )}
+          {stats.guessed > 0 && (
+            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+              {`${stats.guessed} bucket${stats.guessed !== 1 ? "s are" : " is"} our best guess (dashed outline). Change any that look wrong. New budget lines start at $0 until you set an amount.`}
             </p>
           )}
           {stats.needs > 0 && (

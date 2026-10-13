@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 import {
-  parseCsvStatement, parseFlexibleDate, cleanMerchant, looksLikeTransfer,
+  parseCsvStatement, parseFlexibleDate, cleanMerchant, looksLikeTransfer, looksLikeSave,
   findDuplicates, suggestBucket,
   type ParsedTxn, type TxnKind, type CashFlowTransaction, type MerchantRule,
 } from "@/lib/planning/transactions";
@@ -29,7 +29,7 @@ const MAX_CHARS = 60_000;
 const CHUNK_CHARS = 3_500;   // ~60-80 statement lines — keeps each AI response well under its token cap
 const MAX_CONCURRENCY = 3;
 const VALID_CATEGORIES = EXPENSE_CATEGORIES.map((c) => c.label);
-const KINDS: TxnKind[] = ["spend", "refund", "income", "transfer"];
+const KINDS: TxnKind[] = ["spend", "refund", "income", "save", "transfer"];
 
 function chunkLines(text: string): { text: string; firstLine: number; lastLine: number }[] {
   const lines = text.split(/\r?\n/);
@@ -58,7 +58,7 @@ Rules:
 - ONE entry per transaction line. Never combine or sum charges, even from the same merchant on the same day.
 - "date": the transaction date as YYYY-MM-DD. If the statement omits the year, use the most recent year that is not in the future relative to today.
 - "amount": always a positive number.
-- "kind": "spend" (a purchase or bill), "refund" (money returned from a merchant), "income" (paycheck, deposit, someone paying the user, a sale), or "transfer" (credit card payment, moving money between the user's own accounts).
+- "kind": "spend" (a purchase or bill), "refund" (money returned from a merchant), "income" (paycheck, deposit, someone paying the user, a sale), "save" (money moved OUT into the user's own savings or investment account: transfer to savings, Robinhood/Fidelity/Vanguard/Betterment deposits), or "transfer" (credit card payment, or moving money between the user's own checking accounts).
 - Money sent to another person (Venmo, Zelle, Cash App, PayPal) is "spend"; money received from another person is "income". Only use "transfer" when both sides are the user's own accounts or it's paying off a card.
 - "category" (only for spend/refund): one of ${VALID_CATEGORIES.join(", ")}.
 - "merchant": the store or payer name, title-cased, without store numbers, locations or processor prefixes like "SQ *".
@@ -98,7 +98,8 @@ async function parseChunkWithAi(client: OpenAI, text: string, today: string): Pr
     const merchant = String(r.merchant ?? "").trim() || cleanMerchant(description);
     let kind: TxnKind = KINDS.includes(r.kind as TxnKind) ? (r.kind as TxnKind) : "spend";
     // Belt and braces: a card payment the model called "income" would inflate income.
-    if (kind === "income" && looksLikeTransfer(description)) kind = "transfer";
+    if (kind === "income" && (looksLikeTransfer(description) || looksLikeSave(description))) kind = "transfer";
+    if (kind === "transfer" && looksLikeSave(description) && !/\bfrom\b/i.test(description)) kind = "save";
     const category = VALID_CATEGORIES.includes(String(r.category)) ? String(r.category) : undefined;
     txns.push({ date, description, merchant: merchant.slice(0, 60), amount: Math.round(amount * 100) / 100, kind, category });
   }
