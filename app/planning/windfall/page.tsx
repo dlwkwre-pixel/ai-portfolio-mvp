@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { toMonthlyAmount } from "@/lib/planning/frequency";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -19,16 +20,7 @@ export default async function WindfallPlanningPage() {
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id),
   ]);
 
-  const toMonthly = (amt: number, freq: string) => {
-    switch (freq) {
-      case "weekly": return amt * 52 / 12;
-      case "biweekly": return amt * 26 / 12;
-      case "semimonthly": return amt * 2;
-      case "quarterly": return amt / 3;
-      case "annual": return amt / 12;
-      default: return amt;
-    }
-  };
+  const toMonthly = (amt: number, freq: string) => toMonthlyAmount(amt, freq);
 
   const monthlyExpenses = profile?.monthly_expenses
     ? Number(profile.monthly_expenses)

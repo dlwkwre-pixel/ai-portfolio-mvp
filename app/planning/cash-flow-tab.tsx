@@ -11,7 +11,7 @@ import {
 } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
 import {
-  fmt, fmtFull, toMonthly, getEffectiveBudget,
+  fmt, fmtFull, toMonthly, getEffectiveBudgetEntry,
   LineItemRow, AddItemRow, sectionHeadStyle,
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
 } from "./planning-shared";
@@ -21,6 +21,8 @@ import UnrecordedBills, { type UnrecordedLine } from "./unrecorded-bills";
 import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
 import StickyMonthBar from "./sticky-month-bar";
+import { billPlanForMonth } from "@/lib/planning/frequency";
+import BillScheduleEditor from "./bill-schedule-editor";
 import BankSyncNote, { type BankLinkInfo } from "./bank-sync-note";
 import AddTransactionForm from "./add-transaction-form";
 import { deleteImportBatch } from "./planning-actions";
@@ -934,10 +936,10 @@ function MonthlySpendChart({
       const m = (p % 12) + 1;
       let spend = 0, loggedCount = 0;
       for (const item of expenseItems) {
-        const budgeted = toMonthly(getEffectiveBudget(budgetHistory, item.id, y, m) ?? item.amount, item.frequency);
+        const line = billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, y, m), y, m);
         const actual = idx.get(`${item.id}|${y}|${m}`);
-        if (actual !== undefined) { spend += actual; loggedCount++; }
-        else spend += budgeted;
+        if (actual !== undefined) { spend += line.countActual(actual); loggedCount++; }
+        else spend += line.assumed;
       }
       if (loggedCount === 0) continue; // nothing logged this month — skip rather than show a pure projection
       out.push({ label: `${MONTH_NAMES[m - 1].slice(0, 3)} ’${String(y).slice(2)}`, spend: Math.round(spend) });
@@ -1103,17 +1105,21 @@ export default function CashFlowOS({
     return idx;
   }, [expenseActuals]);
 
+  // What one budget line means in one month: an ordinary monthly amount, or a bill that
+  // repeats every N months (set aside monthly, or counted when paid) — see frequency.ts.
+  function lineFor(item: CashFlowItem, y: number, m: number) {
+    return billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, y, m), y, m);
+  }
+
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
       const items = expenseItems.filter(i => categoryOf(i) === cat.label);
-      const budgeted = items.reduce((s, i) => {
-        const hist = getEffectiveBudget(budgetHistory, i.id, selYear, selMonth);
-        return s + toMonthly(hist ?? i.amount, i.frequency);
+      const budgeted = items.reduce((s, i) => s + lineFor(i, selYear, selMonth).plan, 0);
+      // A periodic bill's payment counts the way its schedule says (spread → amount/N).
+      const actual = items.reduce((s, i) => {
+        const a = expenseActuals.find(x => x.cash_flow_item_id === i.id && x.period_year === selYear && x.period_month === selMonth);
+        return a ? s + lineFor(i, selYear, selMonth).countActual(a.actual_amount) : s;
       }, 0);
-      const actualItems = expenseActuals.filter(a =>
-        items.some(ei => ei.id === a.cash_flow_item_id) && a.period_year === selYear && a.period_month === selMonth
-      );
-      const actual = actualItems.reduce((s, a) => s + a.actual_amount, 0);
       return { ...cat, items, budgeted, actual };
     // Keep categories with spending but a $0 budget (e.g. a line created from an import) —
     // unplanned spending is exactly what Budget vs. Actual needs to show.
@@ -1130,7 +1136,7 @@ export default function CashFlowOS({
   // date range differs. Also returns the pure-budgeted total for the same range, so
   // callers can show a "vs budget" delta without a second pass over the data.
   function sumBlendedExpenses(periodFrom: number, periodTo: number) {
-    let blendedTotal = 0, budgetedTotal = 0, recordedTotal = 0, assumedTotal = 0, fullyLoggedMonths = 0, anyLogged = false;
+    let blendedTotal = 0, budgetedTotal = 0, recordedTotal = 0, assumedTotal = 0, setAsideTotal = 0, fullyLoggedMonths = 0, anyLogged = false;
     const monthCount = periodTo - periodFrom + 1;
     for (let p = periodFrom; p <= periodTo; p++) {
       const y = Math.floor(p / 12);
@@ -1138,19 +1144,23 @@ export default function CashFlowOS({
       let loggedCount = 0;
       let monthBudgeted = 0;
       const monthBlended = expenseItems.reduce((s, item) => {
-        const hist = getEffectiveBudget(budgetHistory, item.id, y, m);
-        const budgetedAmt = toMonthly(hist ?? item.amount, item.frequency);
-        monthBudgeted += budgetedAmt;
+        const line = lineFor(item, y, m);
+        monthBudgeted += line.plan;
         const actual = actualsIndex.get(`${item.id}|${y}|${m}`);
-        if (actual !== undefined) { loggedCount++; anyLogged = true; recordedTotal += actual; return s + actual; }
-        assumedTotal += budgetedAmt;
-        return s + budgetedAmt;
+        if (actual !== undefined) {
+          const counted = line.countActual(actual);
+          loggedCount++; anyLogged = true; recordedTotal += counted; return s + counted;
+        }
+        // A periodic bill in a month it isn't due: its share is set aside, not "missing".
+        if (line.periodic && !line.askForPayment) { loggedCount++; setAsideTotal += line.assumed; return s + line.assumed; }
+        assumedTotal += line.assumed;
+        return s + line.assumed;
       }, 0);
       if (expenseItems.length > 0 && loggedCount === expenseItems.length) fullyLoggedMonths++;
       blendedTotal += monthBlended;
       budgetedTotal += monthBudgeted;
     }
-    return { blendedTotal, budgetedTotal, recordedTotal, assumedTotal, monthCount, fullyLoggedMonths, anyLogged };
+    return { blendedTotal, budgetedTotal, recordedTotal, assumedTotal, setAsideTotal, monthCount, fullyLoggedMonths, anyLogged };
   }
 
   // Income for a month = expected (effectiveIncome) adjusted by what was actually recorded:
@@ -1181,13 +1191,16 @@ export default function CashFlowOS({
   // Planned lines with nothing recorded for a month — the ones the page is quietly assuming.
   function unrecordedLinesFor(y: number, m: number): UnrecordedLine[] {
     return expenseItems
-      .map(item => ({ item, planned: toMonthly(getEffectiveBudget(budgetHistory, item.id, y, m) ?? item.amount, item.frequency) }))
-      .filter(({ item, planned }) => planned > 0 && actualsIndex.get(`${item.id}|${y}|${m}`) === undefined)
+      .map(item => ({ item, line: lineFor(item, y, m) }))
+      // Periodic bills only show up in the month they're due — the full payment amount.
+      .filter(({ item, line }) => line.askForPayment && line.paymentAmount > 0 && actualsIndex.get(`${item.id}|${y}|${m}`) === undefined)
+      .map(({ item, line }) => ({ item, line, planned: line.paymentAmount }))
       .sort((a, b) => (a.item.due_day ?? 99) - (b.item.due_day ?? 99) || b.planned - a.planned)
-      .map(({ item, planned }) => ({
+      .map(({ item, line, planned }) => ({
         id: item.id, label: item.label, planned, dueDay: item.due_day,
-        // Same amount every month → one-tap "Paid". Everything else fills in from transactions.
-        fixed: item.due_day != null || FIXED_BILL_CATEGORIES.has(categoryOf(item)),
+        // Same amount every month (or a scheduled bill) → one-tap "Paid". Everything else
+        // fills in from transactions.
+        fixed: line.periodic || item.due_day != null || FIXED_BILL_CATEGORIES.has(categoryOf(item)),
       }));
   }
   function savedFor(y: number, m: number) {
@@ -1465,16 +1478,19 @@ export default function CashFlowOS({
       const actual = expenseActuals.find(a =>
         a.cash_flow_item_id === item.id && a.period_year === selYear && a.period_month === selMonth
       );
+      const line = lineFor(item, selYear, selMonth);
       if (actual) {
-        actualPortion += actual.actual_amount;
+        actualPortion += line.countActual(actual.actual_amount);
         loggedCount++;
         totalCount++;
+      } else if (line.periodic && !line.askForPayment) {
+        // Not due this month: its share is set aside — settled, not "still to log".
+        actualPortion += line.assumed;
+        if (line.assumed > 0) { loggedCount++; totalCount++; }
       } else {
-        const hist = getEffectiveBudget(budgetHistory, item.id, selYear, selMonth);
-        const planned = toMonthly(hist ?? item.amount, item.frequency);
-        budgetedPortion += planned;
+        budgetedPortion += line.assumed;
         // A $0 line with nothing recorded isn't "still to log" — there's nothing expected.
-        if (planned > 0) totalCount++;
+        if (line.assumed > 0) totalCount++;
       }
     }
     return {
@@ -1541,8 +1557,12 @@ export default function CashFlowOS({
           { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : `${monthlyLabel} Expenses`, val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
             badge: kpiExpenseBadge,
             // Say out loud how much of this is a guess — unrecorded plan lines count at budget.
-            sub: kpiExpenseBlend && kpiExpenseBlend.assumedTotal > 0.5
-              ? `${ph(fmt(kpiExpenseBlend.recordedTotal))} recorded + ${ph(fmt(kpiExpenseBlend.assumedTotal))} assumed`
+            sub: kpiExpenseBlend && (kpiExpenseBlend.assumedTotal > 0.5 || kpiExpenseBlend.setAsideTotal > 0.5)
+              ? [
+                  `${ph(fmt(kpiExpenseBlend.recordedTotal))} recorded`,
+                  kpiExpenseBlend.setAsideTotal > 0.5 ? `${ph(fmt(kpiExpenseBlend.setAsideTotal))} set aside` : null,
+                  kpiExpenseBlend.assumedTotal > 0.5 ? `${ph(fmt(kpiExpenseBlend.assumedTotal))} assumed` : null,
+                ].filter(Boolean).join(" + ")
               : null },
           { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : `${monthlyLabel} Savings`, val: ph(fmt(Math.abs(kpiSavings))), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)",
             sub: viewMode === "monthly" && selSaved > 0 ? `${ph(fmt(selSaved))} moved to savings` : null },
@@ -2426,6 +2446,7 @@ export default function CashFlowOS({
                                       <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>manual</span>
                                     )}
                                   </div>
+                                  <BillScheduleEditor item={item} isPrivate={isPrivate} />
                                 </div>
                               </div>
                               {/* This month, for context only. Actual spending is recorded in Money out

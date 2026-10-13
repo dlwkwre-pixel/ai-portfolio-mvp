@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { syncPlaidIntoCashFlow } from "./plaid-cash-flow";
+import { syncPlaidIntoCashFlow, type FoundTransfer } from "./plaid-cash-flow";
 import { findDuplicateAccounts } from "./account-dedupe";
 
 // Plaid bank connections (balances-first, read-only). Server-only: the access token
@@ -192,11 +192,11 @@ export async function syncBankTransactions(userId: string, itemId: string, acces
 // Feed every linked Item's posted transactions into Cash Flow — once per user, after
 // their Items have synced (dedupes against statement imports and duplicate accounts).
 // Never throws: the bank card and balances matter more than this.
-export async function syncUserCashFlow(userId: string, removedIds: string[]): Promise<number> {
+export async function syncUserCashFlow(userId: string, removedIds: string[]): Promise<{ inserted: number; transfers: FoundTransfer[] }> {
   try {
     return await syncPlaidIntoCashFlow(userId, await getBankTransactions(userId), removedIds);
   } catch {
-    return 0;
+    return { inserted: 0, transfers: [] };
   }
 }
 
@@ -206,6 +206,16 @@ export async function dismissPlaidTransaction(userId: string, externalId: string
   const key = `plaiddismissed:${userId}`;
   const ids = (await kvGet<{ ids?: string[] }>(key))?.ids ?? [];
   if (!ids.includes(externalId)) await kvSet(key, { ids: [...ids, externalId].slice(-2000) });
+}
+
+// Inflows already reported as "transfer between your own accounts" — so the notice shows once.
+export async function getSeenTransferIds(userId: string): Promise<Set<string>> {
+  return new Set((await kvGet<{ ids?: string[] }>(`plaidxfer:${userId}`))?.ids ?? []);
+}
+export async function markTransfersSeen(userId: string, ids: string[]): Promise<void> {
+  const key = `plaidxfer:${userId}`;
+  const prev = (await kvGet<{ ids?: string[] }>(key))?.ids ?? [];
+  await kvSet(key, { ids: Array.from(new Set([...prev, ...ids])).slice(-2000) });
 }
 
 export async function getDismissedPlaidIds(userId: string): Promise<Set<string>> {
@@ -280,7 +290,7 @@ export async function syncUserConnections(
   userId: string,
   conns: { item_id: string; access_token: string }[],
   onError: (itemId: string, message: string) => Promise<void>,
-): Promise<{ synced: number; accounts: number; newTransactions: number; loading: number }> {
+): Promise<{ synced: number; accounts: number; newTransactions: number; loading: number; transfers: FoundTransfer[] }> {
   let synced = 0, accounts = 0, loading = 0;
   const removed: string[] = [];
   const queue = [...conns];
@@ -300,8 +310,8 @@ export async function syncUserConnections(
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, conns.length) }, worker));
-  const newTransactions = await syncUserCashFlow(userId, removed);
-  return { synced, accounts, newTransactions, loading };
+  const { inserted: newTransactions, transfers } = await syncUserCashFlow(userId, removed);
+  return { synced, accounts, newTransactions, loading, transfers };
 }
 
 // Revoke a Plaid Item (used by account deletion — removes our access at Plaid's side,

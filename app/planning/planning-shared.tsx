@@ -9,6 +9,7 @@
 import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BalanceSheetItem, CashFlowItem, BudgetHistoryEntry } from "./planning-actions";
+import { toMonthlyAmount, frequencySuffix } from "@/lib/planning/frequency";
 import { updateBalanceSheetItem, updateCashFlowItem, logExpenseActual } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
 
@@ -23,14 +24,6 @@ export function fmtFull(n: number) {
 export function fmtPct(n: number) {
   return n.toFixed(1) + "%";
 }
-const FREQ_TO_MONTHLY: Record<string, number> = {
-  weekly: 52 / 12,
-  biweekly: 26 / 12,
-  semimonthly: 2,
-  monthly: 1,
-  quarterly: 1 / 3,
-  annual: 1 / 12,
-};
 const FREQ_SUFFIX: Record<string, string> = {
   weekly: "wk", biweekly: "2wk", semimonthly: "½mo", monthly: "mo", quarterly: "qtr", annual: "yr",
 };
@@ -40,11 +33,12 @@ export const FREQ_LABEL: Record<string, string> = {
 };
 export const FREQ_OPTIONS = ["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual"] as const;
 
+// Delegates to lib/planning/frequency so every_{N}_months bills convert correctly everywhere.
 export function toMonthly(amount: number, frequency: string) {
-  return amount * (FREQ_TO_MONTHLY[frequency] ?? 1);
+  return toMonthlyAmount(amount, frequency);
 }
 export function freqSuffix(frequency: string): string {
-  return FREQ_SUFFIX[frequency] ?? "mo";
+  return FREQ_SUFFIX[frequency] ?? frequencySuffix(frequency);
 }
 export function getEffectiveBudget(
   budgetHistory: BudgetHistoryEntry[],
@@ -57,6 +51,21 @@ export function getEffectiveBudget(
       (h.effective_year < year || (h.effective_year === year && h.effective_month <= month)))
     .sort((a, b) => b.effective_year !== a.effective_year ? b.effective_year - a.effective_year : b.effective_month - a.effective_month);
   return entries.length > 0 ? entries[0].amount : null;
+}
+
+// Same lookup, but with the frequency in effect that month — a bill switched from
+// "$250 monthly" to "$1,500 every 6 months" keeps its old plan for earlier months.
+export function getEffectiveBudgetEntry(
+  budgetHistory: BudgetHistoryEntry[],
+  itemId: string,
+  year: number,
+  month: number
+): { amount: number; frequency: string } | null {
+  const entries = budgetHistory
+    .filter(h => h.item_id === itemId &&
+      (h.effective_year < year || (h.effective_year === year && h.effective_month <= month)))
+    .sort((a, b) => b.effective_year !== a.effective_year ? b.effective_year - a.effective_year : b.effective_month - a.effective_month);
+  return entries.length > 0 ? { amount: entries[0].amount, frequency: entries[0].frequency } : null;
 }
 export function fmtDate(dateStr: string) {
   const d = new Date(dateStr + "T12:00:00");

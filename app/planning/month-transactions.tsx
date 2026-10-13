@@ -88,6 +88,17 @@ export default function MonthTransactions({
 
   function handleBucket(t: CashFlowTransaction, value: string) {
     setNotice(null);
+    if (value === "__transfer__") {
+      // Money moved between the user's own accounts: not income or spending. Removing it
+      // (bank rows are remembered so they don't come back) is exactly that.
+      if (!confirm(`Treat ${t.merchant} (${money(t.amount, false)}) as a transfer between your own accounts? It won't count as income or spending.`)) return;
+      startTransition(async () => {
+        const res = await deleteTransaction(t.id);
+        setNotice(res.error ? { text: res.error, tone: "err" } : { text: `${t.merchant} is now treated as a transfer.`, tone: "ok" });
+        router.refresh();
+      });
+      return;
+    }
     startTransition(async () => {
       const res = await updateTransactionBucket(t.id, value || null, remember && !!value);
       if (res.error) { setNotice({ text: res.error, tone: "err" }); return; }
@@ -322,6 +333,7 @@ export default function MonthTransactions({
                   {t.direction === "in" && pool.length === 0 && (
                     <option value={NEW_PAYCHECK_BUCKET}>Regular paycheck (replaces estimate)</option>
                   )}
+                  <option value="__transfer__">Transfer between my own accounts (not counted)</option>
                   {t.direction === "out" && missingCategories.length > 0 && (
                     <optgroup label="Create new budget line">
                       {missingCategories.map((c) => <option key={c} value={`new:${c}`}>New: {c}</option>)}

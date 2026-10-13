@@ -6,6 +6,7 @@ import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
 import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
+import { isValidFrequency, frequencyForInterval, type BillMode } from "@/lib/planning/frequency";
 import { dismissPlaidTransaction } from "@/lib/connections/plaid";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -86,14 +87,17 @@ function parseTaxTreatment(formData: FormData, category: string): TaxTreatment |
 // Recurring cadences. weekly/biweekly/semimonthly support real pay cycles;
 // quarterly rounds out the set. Stored as text; normalized via toMonthly().
 export type CashFlowFrequency =
-  | "weekly" | "biweekly" | "semimonthly" | "monthly" | "quarterly" | "annual";
+  | "weekly" | "biweekly" | "semimonthly" | "monthly" | "quarterly" | "annual"
+  | `every_${number}_months`;
 
 const CASH_FLOW_FREQUENCIES: CashFlowFrequency[] = [
   "weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual",
 ];
 
 function normalizeFrequency(v: unknown): CashFlowFrequency {
-  return (CASH_FLOW_FREQUENCIES as string[]).includes(String(v)) ? (v as CashFlowFrequency) : "monthly";
+  const f = String(v);
+  // also accepts every_{N}_months for bills that repeat every few months
+  return (CASH_FLOW_FREQUENCIES as string[]).includes(f) || isValidFrequency(f) ? (f as CashFlowFrequency) : "monthly";
 }
 
 export type CashFlowItem = {
@@ -109,6 +113,8 @@ export type CashFlowItem = {
   category: string | null; // user-assigned; null = infer from label
   is_variable?: boolean;    // income that fluctuates (freelance/commission)
   last_paid_for_date: string | null; // specific due-date occurrence ('YYYY-MM-DD') last satisfied — see lib/planning/cash-flow-forecast.ts
+  due_anchor?: string | null;       // periodic bills: a date it's due; due months repeat every N (lib/planning/frequency.ts)
+  bill_mode?: BillMode | null;      // periodic bills: "spread" (set aside monthly) | "when_paid"
 };
 
 export type NetWorthSnapshot = {
@@ -566,6 +572,65 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
     },
     { onConflict: "item_id,effective_year,effective_month" }
   );
+
+  revalidatePath("/planning");
+  return {};
+}
+
+// How often a bill repeats, when it's next due, the amount per payment, and whether to
+// spread it monthly or count it when paid. intervalMonths 1 = an ordinary monthly line.
+export async function setBillSchedule(input: {
+  id: string;
+  intervalMonths: number;
+  amountPerPayment: number;
+  nextDue: string | null;   // YYYY-MM-DD
+  mode: BillMode;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const n = Math.round(Number(input.intervalMonths));
+  if (!Number.isFinite(n) || n < 1 || n > 24) return { error: "Pick between 1 and 24 months." };
+  const amount = Math.round(Number(input.amountPerPayment) * 100) / 100;
+  if (!Number.isFinite(amount) || amount < 0) return { error: "Enter the amount per payment." };
+  const nextDue = input.nextDue && /^\d{4}-\d{2}-\d{2}$/.test(input.nextDue) ? input.nextDue : null;
+  if (n > 1 && !nextDue) return { error: "Add when it's next due, so we know which months to expect it." };
+  const mode: BillMode = input.mode === "when_paid" ? "when_paid" : "spread";
+  const frequency = frequencyForInterval(n);
+
+  const { data: item } = await supabase.from("cash_flow_items")
+    .select("id, amount, frequency").eq("id", input.id).eq("user_id", user.id).maybeSingle();
+  if (!item) return { error: "Budget item not found." };
+
+  const { error } = await supabase.from("cash_flow_items").update({
+    frequency, amount,
+    due_anchor: n > 1 ? nextDue : null,
+    bill_mode: mode,
+    ...(nextDue ? { due_day: Number(nextDue.slice(8, 10)) } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq("id", input.id).eq("user_id", user.id);
+  if (error) {
+    return { error: /due_anchor|bill_mode/.test(error.message)
+      ? "Repeating bills need a quick database update first (supabase/cash-flow-bill-schedule.sql)."
+      : error.message };
+  }
+
+  // Keep past months on the plan they had: seed history with the old line if it has none,
+  // then record the new schedule from this month on.
+  const { data: existingHistory } = await supabase.from("cash_flow_budget_history")
+    .select("id").eq("item_id", input.id).limit(1).maybeSingle();
+  if (!existingHistory) {
+    await supabase.from("cash_flow_budget_history").insert({
+      user_id: user.id, item_id: input.id, amount: Number(item.amount), frequency: item.frequency,
+      effective_year: 2000, effective_month: 1,
+    });
+  }
+  const now = new Date();
+  await supabase.from("cash_flow_budget_history").upsert({
+    user_id: user.id, item_id: input.id, amount, frequency,
+    effective_year: now.getFullYear(), effective_month: now.getMonth() + 1,
+  }, { onConflict: "item_id,effective_year,effective_month" });
 
   revalidatePath("/planning");
   return {};

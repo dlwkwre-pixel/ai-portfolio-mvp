@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BankTransaction } from "./plaid";
-import { getDismissedPlaidIds } from "./plaid";
+import { getDismissedPlaidIds, getSeenTransferIds, markTransfersSeen } from "./plaid";
 import { findDuplicateAccounts } from "./account-dedupe";
 import {
   cleanMerchant, findDuplicates, suggestBucket, looksLikeSave, looksLikeTransfer, looksLikeRefund,
@@ -75,7 +75,10 @@ function categoryFor(t: BankTransaction): string {
   return PFC_DETAILED_CATEGORY[t.detailed ?? ""] ?? PFC_PRIMARY_CATEGORY[t.category ?? ""] ?? "Other";
 }
 
-export async function syncPlaidIntoCashFlow(userId: string, store: BankTransaction[], removedIds: string[]): Promise<number> {
+export type FoundTransfer = { merchant: string; amount: number; date: string };
+export type CashFlowSyncResult = { inserted: number; transfers: FoundTransfer[] };
+
+export async function syncPlaidIntoCashFlow(userId: string, store: BankTransaction[], removedIds: string[]): Promise<CashFlowSyncResult> {
   const admin = createAdminClient();
 
   if (removedIds.length > 0) {
@@ -100,7 +103,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       .eq("user_id", userId).eq("source", "plaid").in("external_id", dupTxnIds.slice(i, i + 200));
   }
   const posted = store.filter((t) => !t.pending && t.amount !== 0 && t.date && !skipAccounts.has(t.accountId) && !dismissed.has(t.id));
-  if (posted.length === 0) return 0;
+  if (posted.length === 0) return { inserted: 0, transfers: [] };
 
   const minDate = posted.reduce((m, t) => (t.date < m ? t.date : m), posted[0].date);
   const [{ data: existingRows, error: exErr }, { data: items }, { data: rules }] = await Promise.all([
@@ -112,7 +115,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   ]);
   if (exErr) { // e.g. external_id column not added yet — try again next sync
     console.error("[plaid-cash-flow] reading existing transactions failed:", exErr.code, exErr.message);
-    return 0;
+    return { inserted: 0, transfers: [] };
   }
 
   type Row = CashFlowTransaction & { external_id: string | null };
@@ -130,6 +133,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   const classified = new Map(posted.map((t) => [t.id, classifyBankTransaction(t)]));
   const MOVE_RE = /zelle|transfer|xfer|venmo|cash\s*app|ach|deposit|payment (from|to)|online/i;
   const usedOut = new Set<string>();
+  const pairedInflows: BankTransaction[] = [];
   const dayDiff = (a: string, b: string) => Math.abs(new Date(`${a}T00:00:00Z`).getTime() - new Date(`${b}T00:00:00Z`).getTime()) / 86_400_000;
   for (const inflow of posted) {
     const c = classified.get(inflow.id)!;
@@ -140,11 +144,18 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     if (!outflow) continue;
     usedOut.add(outflow.id);
     classified.set(inflow.id, { kind: "transfer" });
+    pairedInflows.push(inflow);
     const destination = subtypeOf.get(inflow.accountId) ?? "";
     if (classified.get(outflow.id)!.kind === "spend") {
       classified.set(outflow.id, { kind: /saving|money market|cd|investment|brokerage|ira/i.test(destination) ? "save" : "transfer" });
     }
   }
+
+  // Tell the user about transfers the first time they're found, not on every sync.
+  const seen = await getSeenTransferIds(userId);
+  const fresh = pairedInflows.filter((t) => !seen.has(t.id));
+  const transfers: FoundTransfer[] = fresh.map((t) => ({ merchant: (t.merchant || cleanMerchant(t.name)).slice(0, 60), amount: Math.abs(t.amount), date: t.date }));
+  if (fresh.length > 0) await markTransfersSeen(userId, fresh.map((t) => t.id));
 
   // Update rows we already have (incl. ones whose classification changed); collect the rest.
   const candidates: { t: BankTransaction; parsed: ParsedTxn }[] = [];
@@ -175,7 +186,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     const merchant = (t.merchant || cleanMerchant(t.name)).slice(0, 60);
     candidates.push({ t, parsed: { date: t.date, description: t.name.slice(0, 200), merchant, amount, kind, category } });
   }
-  if (candidates.length === 0) return 0;
+  if (candidates.length === 0) return { inserted: 0, transfers };
 
   // Same transaction already imported from a statement / typed in → skip it.
   const dupIdx = new Set(findDuplicates(candidates.map((c) => c.parsed), others).map((d) => d.index));
@@ -224,5 +235,5 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       else if (rowErr.code !== "23505") console.error("[plaid-cash-flow] insert failed:", rowErr.code, rowErr.message);
     }
   }
-  return inserted;
+  return { inserted, transfers };
 }
