@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { CashFlowItem } from "./planning-actions";
-import { updateTransactionBucket, deleteTransaction } from "./planning-actions";
+import type { CashFlowItem, ExpenseActual } from "./planning-actions";
+import { updateTransactionBucket, deleteTransaction, deleteExpenseActual } from "./planning-actions";
 import { NEW_PAYCHECK_BUCKET, type CashFlowTransaction } from "@/lib/planning/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
@@ -28,9 +28,12 @@ const selectStyle: React.CSSProperties = {
 };
 
 export default function MonthTransactions({
-  transactions, selYear, selMonth, expenseItems, incomeItems, isPrivate,
+  transactions, loggedTotals = [], selYear, selMonth, expenseItems, incomeItems, isPrivate,
 }: {
   transactions: CashFlowTransaction[];
+  // Month totals typed in before transactions existed (expense_actuals). Still counted for
+  // their item-month, so they're listed here where they can be seen and removed.
+  loggedTotals?: ExpenseActual[];
   selYear: number;
   selMonth: number;
   expenseItems: CashFlowItem[];
@@ -97,6 +100,37 @@ export default function MonthTransactions({
     });
   }
 
+  function handleDeleteTotal(a: ExpenseActual) {
+    if (!confirm(`Remove the ${money(a.actual_amount, false)} total logged for ${a.label}? Your plan isn't affected.`)) return;
+    startTransition(async () => {
+      const res = await deleteExpenseActual(a.id);
+      if (res.error) setNotice({ text: res.error, tone: "err" });
+      router.refresh();
+    });
+  }
+
+  const totalsList = loggedTotals.length > 0 && (
+    <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+        Totals logged the old way for {MONTH_NAMES[selMonth - 1]}. They count until that bucket gets transactions.
+      </div>
+      {loggedTotals.map((a) => (
+        <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {itemLabel.get(a.cash_flow_item_id ?? "") ?? a.label}
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>{money(a.actual_amount, isPrivate)}</span>
+            <button type="button" onClick={() => handleDeleteTotal(a)} disabled={pending} aria-label={`Remove logged total for ${a.label}`} title="Remove this logged total"
+              style={{ minWidth: "36px", minHeight: "32px", borderRadius: "var(--radius-sm)", background: "transparent", border: "1px solid var(--border-subtle)", color: "var(--text-tertiary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+            </button>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
   function handleDelete(t: CashFlowTransaction) {
     if (!confirm(`Delete ${t.merchant} (${money(t.amount, false)}) on ${t.txn_date}?`)) return;
     startTransition(async () => {
@@ -122,6 +156,7 @@ export default function MonthTransactions({
         <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
           No transactions for {MONTH_NAMES[selMonth - 1]} {selYear} yet. Import a statement or add one by hand.
         </p>
+        {totalsList}
         {addControl}
       </div>
     );
@@ -172,6 +207,7 @@ export default function MonthTransactions({
         When I move a merchant, move its other transactions this month and remember it for next time
       </label>
 
+      {totalsList}
       {addControl}
 
       {notice && (

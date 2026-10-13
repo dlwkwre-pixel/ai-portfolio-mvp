@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning-actions";
 import {
   addCashFlowItem, updateCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
-  logExpenseActual, deleteExpenseActual, moveMerchantActual, syncForecastToActuals,
+  syncForecastToActuals,
   markCashFlowItemPaid, clearCashFlowItemPaid, updateSurplusAllocation,
 } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
@@ -1004,10 +1004,29 @@ function MonthlySpendChart({
   );
 }
 
+// Section heading for the month flow: 1 Money in → 2 Money out → 3 Left over, then
+// Insights and the plan. Numbered steps are the "do this month" path; unnumbered ones
+// are reference/setup.
+function CfSectionTitle({ step, title, hint }: { step?: string; title: string; hint: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", margin: "22px 2px 10px" }}>
+      {step && (
+        <span aria-hidden="true" style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "var(--radius-full)", border: "1px solid var(--border-subtle)", background: "var(--bg-surface)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--brand-blue)", marginTop: "1px" }}>
+          {step}
+        </span>
+      )}
+      <div style={{ minWidth: 0 }}>
+        <h3 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3 }}>{title}</h3>
+        <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{hint}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function CashFlowOS({
   cashFlowItems, expenseActuals, transactions = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
-  liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis,
+  liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
   transactions?: CashFlowTransaction[];
@@ -1018,6 +1037,7 @@ export default function CashFlowOS({
   emergencyFundMonths: number;    // 6 | 9 | 12, shared with plan-401k-section.tsx
   surplusToInvestPct: number;     // 0-100, see updateSurplusAllocation
   emergencyFundExpenseBasis: number; // effectiveExpenses — matches Plan401kSection's basis, NOT the narrower monthlyExpenses prop above
+  k401EmployeeMonthly?: number;    // employee 401(k) deferral planning-client subtracts from income items to get effectiveIncome
 }) {
   const [cfExpanded, setCfExpanded] = useState(false);
   const cfAdvanced = !guided || cfExpanded;
@@ -1029,8 +1049,6 @@ export default function CashFlowOS({
   const [highlightedCat, setHighlightedCat] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [importSuccess, setImportSuccess] = useState<(ImportSavedSummary & { undone?: boolean }) | null>(null);
-  const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
-  const [movingKey, setMovingKey] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -1250,6 +1268,27 @@ export default function CashFlowOS({
 
   const daysLeft = isCurrentMonth ? daysInSelMonth - now.getDate() : 0;
 
+  // Deposits arrive AFTER the 401(k) deferral, but income items are stored before it
+  // (planning-client subtracts k401EmployeeMonthly from their sum). Add this source's share
+  // of the deferral back so the plan doesn't subtract it twice.
+  async function handleIncomeExpected(item: CashFlowItem, avgDeposits: number) {
+    setSyncingId(item.id);
+    const planSum = incomeSources.reduce((sum, src) => sum + src.planMonthly, 0);
+    const share = planSum > 0 ? toMonthly(item.amount, item.frequency) / planSum : 1;
+    const amount = Math.round((avgDeposits + k401EmployeeMonthly * share) * 100) / 100;
+    const fd = new FormData();
+    fd.set("id", item.id);
+    fd.set("label", item.label);
+    fd.set("type", "income");
+    fd.set("amount", String(amount));
+    fd.set("frequency", "monthly");
+    if (item.due_day != null) fd.set("due_day", String(item.due_day));
+    const res = await updateCashFlowItem(fd);
+    setSyncMsg(m => ({ ...m, [item.id]: res.error ? res.error : `Updated to ${fmt(amount)}/mo${k401EmployeeMonthly > 0 ? " (before 401(k))" : ""}` }));
+    setSyncingId(null);
+    router.refresh();
+  }
+
   async function handleSync(itemId: string) {
     setSyncingId(itemId);
     const result = await syncForecastToActuals(itemId);
@@ -1440,14 +1479,6 @@ export default function CashFlowOS({
         }
       `}</style>
 
-      {/* 50/30/20 balance */}
-      <FiftyThirtyTwenty
-        needsMonthly={needsMonthly}
-        wantsMonthly={wantsMonthly}
-        incomeMonthly={effectiveIncome}
-        isPrivate={isPrivate}
-      />
-
       {/* Zone 1 — Status Strip */}
       <div className="cfo-zone" style={{
         background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
@@ -1482,11 +1513,11 @@ export default function CashFlowOS({
           </div>
         </div>
         <p style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 12px" }}>
-          Showing: {MONTH_NAMES[selMonth - 1]} {selYear} · {viewMode[0].toUpperCase() + viewMode.slice(1)} — scopes everything below (KPIs, Available to Invest, flow chart, budget breakdown). The 50/30/20 balance above always reflects your current budget, not this period.
+          Showing {MONTH_NAMES[selMonth - 1]} {selYear} · {viewMode[0].toUpperCase() + viewMode.slice(1)}. Everything below follows this month: what came in, what went out, and what&apos;s left. Your plan (at the bottom) repeats every month.
         </p>
         {viewMode === "average" && !avgMonthly ? (
           <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center", padding: "8px 0" }}>
-            Log actuals for at least one completed month to see an average.
+            Record transactions for at least one completed month to see an average.
           </p>
         ) : (
           <>
@@ -1530,6 +1561,273 @@ export default function CashFlowOS({
         )}
       </div>
 
+      <CfSectionTitle step="1" title="Money in" hint={`What actually came in during ${MONTH_NAMES[selMonth - 1]}.`} />
+      <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
+            <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
+              {MONTH_NAMES[selMonth - 1]}: {ph(fmt(selIncome.total))}
+              <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}> · expected {ph(fmt(effectiveIncome))}/mo</span>
+            </span>
+          </div>
+          {/* What this month's income figure is made of — the plan, or what was recorded. */}
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
+            {selIncome.recordedCount === 0
+              ? `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
+              : selIncome.status === "in-progress" && selIncome.recordedRegular < selIncome.regular
+                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}). Counting the expected amount until the month's pay is in.`
+                : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}), used in place of expected pay.`}
+            {selIncome.extraCount > 0 && ` Plus ${ph(fmt(selIncome.extras))} extra, one-time income.`}
+          </p>
+          {selIncomeTxns.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
+              {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
+                const src = t.cash_flow_item_id ? incomeItems.find(i => i.id === t.cash_flow_item_id) : null;
+                return (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)", padding: "3px 0" }}>
+                    <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
+                      {"  "}{t.merchant}
+                      <span style={{ color: "var(--text-muted)" }}> · {src ? `pay from ${src.label}` : "extra"}</span>
+                    </span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ marginBottom: "12px" }}>
+            {addingIncome ? (
+              <AddTransactionForm selYear={selYear} selMonth={selMonth} expenseItems={expenseItems} incomeItems={incomeItems}
+                initialKind="income" lockKind onDone={() => setAddingIncome(false)} />
+            ) : (
+              <button type="button" onClick={() => setAddingIncome(true)}
+                style={{ background: "none", border: "1px dashed var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "11px", fontFamily: "var(--font-body)", padding: "6px 12px", minHeight: "32px", cursor: "pointer" }}>
+                + Record income for {MONTH_NAMES[selMonth - 1]} (paycheck or one-time)
+              </button>
+            )}
+          </div>
+      </div>
+
+      <CfSectionTitle step="2" title="Money out" hint={`What you spent in ${MONTH_NAMES[selMonth - 1]}, and how it compares to your plan.`} />
+      <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", marginBottom: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+          <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
+            title="Records what actually happened, transaction by transaction. Doesn't change your plan."
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", minHeight: "36px", borderRadius: "var(--radius-sm)", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.14)" : "var(--card-bg)", color: showImport ? "var(--brand-blue)" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer", transition: "var(--transition-fast)" }}>
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+            Import a statement
+          </button>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+            CSV or copied text. Re-importing is safe: anything already imported gets flagged.
+          </span>
+        </div>
+        {showImport && (
+          <div style={{ marginBottom: "14px" }}>
+            <TransactionImportPanel expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate}
+              onClose={() => setShowImport(false)}
+              onSaved={summary => { setShowImport(false); setImportSuccess(summary); router.refresh(); }}
+            />
+          </div>
+        )}
+        {importSuccess !== null && !showImport && (
+          <div role="status" style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "12px", color: importSuccess.undone ? "var(--text-secondary)" : "var(--green)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0 }}>
+              {importSuccess.undone
+                ? "Import undone. Those transactions were removed."
+                : `Saved ${importSuccess.inserted} transaction${importSuccess.inserted !== 1 ? "s" : ""} to ${importSuccess.months.join(", ")}.`}
+            </span>
+            {!importSuccess.undone && (
+              <button type="button" disabled={pending}
+                onClick={() => startTransition(async () => {
+                  await deleteImportBatch(importSuccess.batchId);
+                  setImportSuccess({ ...importSuccess, undone: true });
+                  router.refresh();
+                })}
+                style={{ background: "none", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", fontSize: "11px", padding: "4px 10px", minHeight: "32px", fontFamily: "var(--font-body)" }}>
+                Undo import
+              </button>
+            )}
+            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px", minWidth: "32px", minHeight: "32px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
+          </div>
+        )}
+
+        <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
+          loggedTotals={expenseActuals.filter(a => a.source !== "transactions" && a.period_year === selYear && a.period_month === selMonth)}
+          expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate} />
+
+      </div>
+
+      {/* Pacing Alert Strip — only for current month when tracking over budget */}
+      {pacingAlerts.length > 0 && (
+        <div className="cfo-zone" style={{
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
+          borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
+          animationDelay: "80ms", display: "flex", gap: "10px", alignItems: "flex-start",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
+            <path d="M10 3L18 17H2L10 3z" fill="rgba(251,146,60,0.15)" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinejoin="round"/>
+            <line x1="10" y1="9" x2="10" y2="13" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="10" cy="15.5" r="0.8" fill="oklch(0.72 0.18 55)"/>
+          </svg>
+          <div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
+              {pacingAlerts.map((a, i) => (
+                <span key={a.label}>{i > 0 ? " " : ""}<strong style={{ color: "var(--text-primary)" }}>{a.label}</strong> is on track to exceed budget by {ph(fmt(a.overage))}.{i < pacingAlerts.length - 1 ? "" : ""}</span>
+              ))}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Zone 2 — Donut + Category Bars */}
+      {catData.length > 0 && (
+        <div className="cfo-zone" style={{
+          background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px",
+          animationDelay: "110ms",
+        }}>
+          <div className="cfo-z2grid" style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+
+            {/* Donut */}
+            <div className="cfo-donut" style={{ flexShrink: 0, width: "196px" }}>
+              <svg width="196" height="196" viewBox="0 0 196 196">
+                <circle cx="98" cy="98" r="74" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
+                {donutSegments.map((seg, si) => {
+                  const isHl = highlightedCat === seg.label;
+                  const color = CF_CAT_COLORS[seg.label] ?? "oklch(0.55 0.05 258)";
+                  const d = cfArcPath(98, 98, 74, seg.startDeg, seg.endDeg);
+                  if (!d) return null;
+                  return (
+                    <path
+                      key={seg.label}
+                      className="cfo-arc-a"
+                      d={d}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={isHl ? 18 : 13}
+                      strokeLinecap="round"
+                      style={{
+                        animationDelay: `${si * 35}ms`,
+                        opacity: highlightedCat && !isHl ? 0.3 : 1,
+                        transition: "opacity 0.2s, stroke-width 0.15s",
+                        cursor: "pointer",
+                        filter: isHl ? `drop-shadow(0 0 7px ${color})` : "none",
+                      }}
+                      onClick={() => setHighlightedCat(isHl ? null : seg.label)}
+                    />
+                  );
+                })}
+                {/* Center label */}
+                <text x="98" y="90" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: "10px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  {highlightedCat ?? "Expenses"}
+                </text>
+                <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+                  {isPrivate ? "••••" : (highlightedCat
+                    ? ((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) >= 1000
+                      ? `$${(((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) / 1000).toFixed(1)}k`
+                      : fmt((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult)
+                    : displayCenter)}
+                </text>
+              </svg>
+            </div>
+
+            {/* Category bars */}
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
+                {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
+              </div>
+              <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
+                How each category tracked against your plan. To change budget amounts, use Edit my plan at the bottom. Click a slice or category to highlight it.
+              </div>
+
+              {/* Headline verdict — the one-glance "how did I do" */}
+              {(() => {
+                const logged = catData.filter((c) => c.actual > 0);
+                if (logged.length === 0) {
+                  return (
+                    <div style={{ marginBottom: "12px", padding: "11px 13px", borderRadius: "10px", background: "var(--surface-006)", border: "1px solid var(--border-subtle)", fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                      Import or add this month&apos;s transactions above and you&apos;ll see how you tracked against your plan here.
+                    </div>
+                  );
+                }
+                const totBudget = logged.reduce((s, c) => s + c.budgeted, 0) * mult;
+                const totActual = logged.reduce((s, c) => s + c.actual, 0) * mult;
+                const v = totActual - totBudget;
+                const under = v <= 0;
+                const col = under ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
+                const utilPct = totBudget > 0 ? Math.round((totActual / totBudget) * 100) : 0;
+                return (
+                  <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+                        Spent <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{ph(fmt(totActual))}</strong> of <span style={{ fontFamily: "var(--font-mono)" }}>{ph(fmt(totBudget))}</span> budgeted
+                      </span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: col, fontFamily: "var(--font-mono)" }}>
+                        {ph(fmt(Math.abs(v)))} {under ? "under" : "over"}
+                      </span>
+                    </div>
+                    <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "9px", overflow: "hidden" }}>
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(utilPct, 100)}%`, borderRadius: "3.5px", background: col }} />
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-body)" }}>{utilPct}% of budget used · {logged.length} categor{logged.length === 1 ? "y" : "ies"} logged</div>
+                  </div>
+                );
+              })()}
+
+              {catData.map((cat, ci) => {
+                const isHl = highlightedCat === cat.label;
+                const color = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
+                const hasActual = cat.actual > 0;
+                const variance = hasActual ? cat.actual - cat.budgeted : null;
+                const over = variance !== null && variance > 0;
+                // Bar fills to % of THIS category's own budget (utilization), not the global max.
+                const util = cat.budgeted > 0 ? cat.actual / cat.budgeted : (hasActual ? 1.2 : 0);
+                const fillPct = Math.min(util * 100, 100);
+                const barColor = !hasActual ? color + "44" : over ? "oklch(0.65 0.18 25)" : color;
+                return (
+                  <div
+                    key={cat.label}
+                    className={`cfo-catrow${isHl ? " cfo-hl" : ""}`}
+                    style={{
+                      padding: "6px 8px", borderRadius: "6px",
+                      border: `1px solid ${isHl ? color + "40" : "transparent"}`,
+                      cursor: "pointer", transition: "background 0.15s, border-color 0.15s",
+                      opacity: highlightedCat && !isHl ? 0.5 : 1,
+                    }}
+                    onClick={() => setHighlightedCat(isHl ? null : cat.label)}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "5px" }}>
+                      <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: isHl ? 600 : 400, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        {/* actual / budget — actual is the lead number now */}
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                          <span style={{ color: hasActual ? (over ? "oklch(0.65 0.18 25)" : "var(--text-primary)") : "var(--text-tertiary)", fontWeight: hasActual ? 600 : 400 }}>{hasActual ? ph(fmt(cat.actual * mult)) : "—"}</span>
+                          <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted * mult))}</span>
+                        </span>
+                        {variance !== null && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
+                            {ph(fmt(Math.abs(variance) * mult))} {over ? "over" : "under"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)", overflow: "hidden" }}>
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, borderRadius: "2.5px", background: barColor, animationDelay: `${150 + ci * 45}ms` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CfSectionTitle step="3" title="Left over" hint="Income minus spending, and where it should go." />
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund
@@ -1574,17 +1872,17 @@ export default function CashFlowOS({
             </div>
             {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                This assumes you&apos;ll spend the rest of your budget — log actuals below for a real number.
+                This assumes you&apos;ll spend the rest of your budget. Add this month&apos;s transactions in Money out for a real number.
               </div>
             )}
             {nothingLogged && (
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px", fontStyle: "italic" }}>
-                Nothing&apos;s logged for {MONTH_NAMES[selMonth - 1]} yet — this is a projection off your budget, not a real number. Log actuals below to confirm it.
+                Nothing&apos;s recorded for {MONTH_NAMES[selMonth - 1]} yet, so this is a projection from your plan, not a real number. Import or add transactions in Money out to confirm it.
               </div>
             )}
             {forecast.reservedForEmergencyFund === 0 && !nothingLogged && monthlyPerf.surplus > 0 && (
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                Matches the Savings row in your 50/30/20 balance above.
+                Matches the Savings row in your 50/30/20 balance under Insights.
               </div>
             )}
             {monthlyPerf.surplus > 0 && forecast.freeCash < 0 && (
@@ -1725,6 +2023,15 @@ export default function CashFlowOS({
         );
       })()}
 
+      <CfSectionTitle title="Insights" hint="Patterns across your plan and recent months." />
+      {guided && !cfExpanded && (
+        <button type="button" onClick={() => setCfExpanded(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer", marginBottom: "10px" }}>
+          Show insights (flow chart, 50/30/20, bill calendar)
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
+      {cfAdvanced && (<>
       {/* Atlas Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
         <div className="cfo-zone" style={{
@@ -1759,188 +2066,13 @@ export default function CashFlowOS({
         />
       )}
 
-      {/* Pacing Alert Strip — only for current month when tracking over budget */}
-      {pacingAlerts.length > 0 && (
-        <div className="cfo-zone" style={{
-          background: "var(--card-bg)", border: "1px solid var(--card-border)",
-          borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
-          animationDelay: "80ms", display: "flex", gap: "10px", alignItems: "flex-start",
-        }}>
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
-            <path d="M10 3L18 17H2L10 3z" fill="rgba(251,146,60,0.15)" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinejoin="round"/>
-            <line x1="10" y1="9" x2="10" y2="13" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="10" cy="15.5" r="0.8" fill="oklch(0.72 0.18 55)"/>
-          </svg>
-          <div>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
-            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
-              {pacingAlerts.map((a, i) => (
-                <span key={a.label}>{i > 0 ? " " : ""}<strong style={{ color: "var(--text-primary)" }}>{a.label}</strong> is on track to exceed budget by {ph(fmt(a.overage))}.{i < pacingAlerts.length - 1 ? "" : ""}</span>
-              ))}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {guided && !cfExpanded && (
-        <button type="button" onClick={() => setCfExpanded(true)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer", marginBottom: "10px" }}>
-          Show category detail & budget tracking
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-      )}
-      {cfAdvanced && (<>
-      {/* Zone 2 — Donut + Category Bars */}
-      {catData.length > 0 && (
-        <div className="cfo-zone" style={{
-          background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
-          borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px",
-          animationDelay: "110ms",
-        }}>
-          <div className="cfo-z2grid" style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
-
-            {/* Donut */}
-            <div className="cfo-donut" style={{ flexShrink: 0, width: "196px" }}>
-              <svg width="196" height="196" viewBox="0 0 196 196">
-                <circle cx="98" cy="98" r="74" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
-                {donutSegments.map((seg, si) => {
-                  const isHl = highlightedCat === seg.label;
-                  const color = CF_CAT_COLORS[seg.label] ?? "oklch(0.55 0.05 258)";
-                  const d = cfArcPath(98, 98, 74, seg.startDeg, seg.endDeg);
-                  if (!d) return null;
-                  return (
-                    <path
-                      key={seg.label}
-                      className="cfo-arc-a"
-                      d={d}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={isHl ? 18 : 13}
-                      strokeLinecap="round"
-                      style={{
-                        animationDelay: `${si * 35}ms`,
-                        opacity: highlightedCat && !isHl ? 0.3 : 1,
-                        transition: "opacity 0.2s, stroke-width 0.15s",
-                        cursor: "pointer",
-                        filter: isHl ? `drop-shadow(0 0 7px ${color})` : "none",
-                      }}
-                      onClick={() => setHighlightedCat(isHl ? null : seg.label)}
-                    />
-                  );
-                })}
-                {/* Center label */}
-                <text x="98" y="90" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: "10px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  {highlightedCat ?? "Expenses"}
-                </text>
-                <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                  {isPrivate ? "••••" : (highlightedCat
-                    ? ((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) >= 1000
-                      ? `$${(((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) / 1000).toFixed(1)}k`
-                      : fmt((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult)
-                    : displayCenter)}
-                </text>
-              </svg>
-            </div>
-
-            {/* Category bars */}
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
-                {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
-              </div>
-              <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
-                How each category tracked — to edit amounts, see the list further down. Click a slice or category to highlight it (shared with the flow chart above).
-              </div>
-
-              {/* Headline verdict — the one-glance "how did I do" */}
-              {(() => {
-                const logged = catData.filter((c) => c.actual > 0);
-                if (logged.length === 0) {
-                  return (
-                    <div style={{ marginBottom: "12px", padding: "11px 13px", borderRadius: "10px", background: "var(--surface-006)", border: "1px solid var(--border-subtle)", fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-                      Log this period&apos;s actual spending below and you&apos;ll see exactly how you tracked against budget here.
-                    </div>
-                  );
-                }
-                const totBudget = logged.reduce((s, c) => s + c.budgeted, 0) * mult;
-                const totActual = logged.reduce((s, c) => s + c.actual, 0) * mult;
-                const v = totActual - totBudget;
-                const under = v <= 0;
-                const col = under ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
-                const utilPct = totBudget > 0 ? Math.round((totActual / totBudget) * 100) : 0;
-                return (
-                  <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-                        Spent <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{ph(fmt(totActual))}</strong> of <span style={{ fontFamily: "var(--font-mono)" }}>{ph(fmt(totBudget))}</span> budgeted
-                      </span>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: col, fontFamily: "var(--font-mono)" }}>
-                        {ph(fmt(Math.abs(v)))} {under ? "under" : "over"}
-                      </span>
-                    </div>
-                    <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "9px", overflow: "hidden" }}>
-                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(utilPct, 100)}%`, borderRadius: "3.5px", background: col }} />
-                    </div>
-                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-body)" }}>{utilPct}% of budget used · {logged.length} categor{logged.length === 1 ? "y" : "ies"} logged</div>
-                  </div>
-                );
-              })()}
-
-              {catData.map((cat, ci) => {
-                const isHl = highlightedCat === cat.label;
-                const color = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
-                const hasActual = cat.actual > 0;
-                const variance = hasActual ? cat.actual - cat.budgeted : null;
-                const over = variance !== null && variance > 0;
-                // Bar fills to % of THIS category's own budget (utilization), not the global max.
-                const util = cat.budgeted > 0 ? cat.actual / cat.budgeted : (hasActual ? 1.2 : 0);
-                const fillPct = Math.min(util * 100, 100);
-                const barColor = !hasActual ? color + "44" : over ? "oklch(0.65 0.18 25)" : color;
-                return (
-                  <div
-                    key={cat.label}
-                    className={`cfo-catrow${isHl ? " cfo-hl" : ""}`}
-                    style={{
-                      padding: "6px 8px", borderRadius: "6px",
-                      border: `1px solid ${isHl ? color + "40" : "transparent"}`,
-                      cursor: "pointer", transition: "background 0.15s, border-color 0.15s",
-                      opacity: highlightedCat && !isHl ? 0.5 : 1,
-                    }}
-                    onClick={() => setHighlightedCat(isHl ? null : cat.label)}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "5px" }}>
-                      <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
-                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: isHl ? 600 : 400, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                        {/* actual / budget — actual is the lead number now */}
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
-                          <span style={{ color: hasActual ? (over ? "oklch(0.65 0.18 25)" : "var(--text-primary)") : "var(--text-tertiary)", fontWeight: hasActual ? 600 : 400 }}>{hasActual ? ph(fmt(cat.actual * mult)) : "—"}</span>
-                          <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted * mult))}</span>
-                        </span>
-                        {variance !== null && (
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
-                            {ph(fmt(Math.abs(variance) * mult))} {over ? "over" : "under"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)", overflow: "hidden" }}>
-                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, borderRadius: "2.5px", background: barColor, animationDelay: `${150 + ci * 45}ms` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Build/Refresh Budget — between Zone 2 and Zone 3 */}
-      <div className="cfo-zone" style={{ animationDelay: "155ms", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <AiImportPanel existingItems={expenseItems} onAdd={applyBudgetRows} />
-        <ActualsRefreshPanel existingItems={expenseItems} expenseActuals={expenseActuals} onAdd={applyBudgetRows} />
-      </div>
+      {/* 50/30/20 balance */}
+      <FiftyThirtyTwenty
+        needsMonthly={needsMonthly}
+        wantsMonthly={wantsMonthly}
+        incomeMonthly={effectiveIncome}
+        isPrivate={isPrivate}
+      />
 
       {/* Bill Calendar */}
       <div className="cfo-zone" style={{
@@ -1971,121 +2103,27 @@ export default function CashFlowOS({
         )}
       </div>
 
-      {/* Zone 3 — Management */}
-      <div className="cfo-zone" style={{
-        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)", padding: "20px",
-        animationDelay: "170ms",
-      }}>
-        {/* Edit budget items and log actuals per category — the source-of-truth list,
-            distinct from the Sankey (flow overview) and donut (budget-vs-actual summary)
-            above, which both read off the same categories in different formats. */}
-        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
-          Edit Budget &amp; Log Spending
-        </div>
-        {/* Same selMonth/selYear state as the top-of-tab selector — changing it here
-            moves the whole page's scoped content too, not just this section. */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
-          <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-            Logging for
-          </span>
-          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
-            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
-            {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
-            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
-            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
-            title="Records what actually happened, transaction by transaction. Doesn't change your budget."
-            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.14)" : "var(--card-bg)", color: showImport ? "var(--brand-blue)" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
-            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            Import transactions
-          </button>
-        </div>
+      {guided && cfExpanded && (
+        <button type="button" onClick={() => setCfExpanded(false)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+          Show less
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
+      </>)}
 
-        {showImport && (
-          <div style={{ marginBottom: "14px" }}>
-            <TransactionImportPanel expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate}
-              onClose={() => setShowImport(false)}
-              onSaved={summary => { setShowImport(false); setImportSuccess(summary); router.refresh(); }}
-            />
-          </div>
-        )}
-        {importSuccess !== null && !showImport && (
-          <div role="status" style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "12px", color: importSuccess.undone ? "var(--text-secondary)" : "var(--green)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0 }}>
-              {importSuccess.undone
-                ? "Import undone. Those transactions were removed."
-                : `Saved ${importSuccess.inserted} transaction${importSuccess.inserted !== 1 ? "s" : ""} to ${importSuccess.months.join(", ")}.`}
-            </span>
-            {!importSuccess.undone && (
-              <button type="button" disabled={pending}
-                onClick={() => startTransition(async () => {
-                  await deleteImportBatch(importSuccess.batchId);
-                  setImportSuccess({ ...importSuccess, undone: true });
-                  router.refresh();
-                })}
-                style={{ background: "none", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", fontSize: "11px", padding: "4px 10px", minHeight: "32px", fontFamily: "var(--font-body)" }}>
-                Undo import
-              </button>
-            )}
-            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px", minWidth: "32px", minHeight: "32px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
-          </div>
-        )}
+      {/* Monthly spend history — always visible, like the net-worth chart */}
+      <MonthlySpendChart
+        expenseActuals={expenseActuals}
+        cashFlowItems={cashFlowItems}
+        budgetHistory={budgetHistory}
+        isPrivate={isPrivate}
+      />
 
-        <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
-          expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate} />
-
-        {/* Income */}
-        <div style={{ marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
-            <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
-              {MONTH_NAMES[selMonth - 1]}: {ph(fmt(selIncome.total))}
-              <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}> · expected {ph(fmt(effectiveIncome))}/mo</span>
-            </span>
-          </div>
-          {/* What this month's income figure is made of — the plan, or what was recorded. */}
-          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
-            {selIncome.recordedCount === 0
-              ? `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
-              : selIncome.status === "in-progress" && selIncome.recordedRegular < selIncome.regular
-                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}). Counting the expected amount until the month's pay is in.`
-                : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}), used in place of expected pay.`}
-            {selIncome.extraCount > 0 && ` Plus ${ph(fmt(selIncome.extras))} extra, one-time income.`}
-          </p>
-          {selIncomeTxns.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
-              {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
-                const src = t.cash_flow_item_id ? incomeItems.find(i => i.id === t.cash_flow_item_id) : null;
-                return (
-                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)", padding: "3px 0" }}>
-                    <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
-                      {"  "}{t.merchant}
-                      <span style={{ color: "var(--text-muted)" }}> · {src ? `pay from ${src.label}` : "extra"}</span>
-                    </span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div style={{ marginBottom: "12px" }}>
-            {addingIncome ? (
-              <AddTransactionForm selYear={selYear} selMonth={selMonth} expenseItems={expenseItems} incomeItems={incomeItems}
-                initialKind="income" lockKind onDone={() => setAddingIncome(false)} />
-            ) : (
-              <button type="button" onClick={() => setAddingIncome(true)}
-                style={{ background: "none", border: "1px dashed var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "11px", fontFamily: "var(--font-body)", padding: "6px 12px", minHeight: "32px", cursor: "pointer" }}>
-                + Record income for {MONTH_NAMES[selMonth - 1]} (paycheck or one-time)
-              </button>
-            )}
-          </div>
+      <CfSectionTitle title="Edit my plan" hint="Your expected income and budget. These repeat every month. Changing them never changes what you actually earned or spent." />
+      <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", marginBottom: "10px" }}>
           <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "4px 0 6px" }}>
-            Expected income sources (your plan, every month)
+            Income sources
           </div>
           {incomeItems.map(item => {
             // Recorded pay per completed month for this source — the basis for "set expected
@@ -2105,7 +2143,7 @@ export default function CashFlowOS({
                 {avg3 !== null && Math.abs(avg3 - toMonthly(item.amount, item.frequency)) >= 1 && (
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "10.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", padding: "2px 0 4px" }}>
                     Last 3 months averaged <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(avg3))}</span>
-                    <button type="button" onClick={() => handleSync(item.id)} disabled={syncingId === item.id}
+                    <button type="button" onClick={() => handleIncomeExpected(item, avg3)} disabled={syncingId === item.id}
                       style={{ padding: "3px 8px", borderRadius: "var(--radius-sm)", fontSize: "10px", fontWeight: 600, background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)", cursor: "pointer", minHeight: "28px" }}>
                       {syncingId === item.id ? "Updating…" : "Use as expected"}
                     </button>
@@ -2118,12 +2156,9 @@ export default function CashFlowOS({
           <div style={{ marginTop: "8px" }}>
             <AddItemRow type="cashflow" placeholder="e.g. Salary" onAdd={fd => { fd.set("type", "income"); return addCashFlowItem(fd); }} />
           </div>
-        </div>
-
-        {/* Expenses with inline actuals */}
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={sectionHeadStyle}>Expenses</span>
+            <span style={sectionHeadStyle}>Spending budget</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.65 0.18 25)", fontWeight: 600 }}>{ph(fmt(monthlyExpenses))}/mo</span>
           </div>
 
@@ -2140,9 +2175,6 @@ export default function CashFlowOS({
                 const isExpanded = expandedCats.has(cat.label);
                 const catColor = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
                 const isHl = highlightedCat === cat.label;
-                const catActual = items.reduce((s, i) => { const a = getActual(i.id); return a ? s + a.actual_amount : s; }, 0);
-                const loggedInCat = items.filter(i => !!getActual(i.id)).length;
-                const catVariance = loggedInCat > 0 ? catActual - catTotal : null;
 
                 return (
                   <div key={cat.label} style={{
@@ -2161,17 +2193,9 @@ export default function CashFlowOS({
                         <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: catColor, flexShrink: 0, boxShadow: isHl ? `0 0 6px ${catColor}` : "none", transition: "box-shadow 0.2s" }} />
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
                         <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>({items.length})</span>
-                        {catVariance !== null && (
-                          <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
-                            {Math.round(catVariance) === 0 ? "on budget" : `${ph(fmt(Math.abs(catVariance)))} ${catVariance > 0 ? "over" : "under"}`}
-                          </span>
-                        )}
                       </span>
                       <span style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(catTotal))}/mo</span>
-                        {loggedInCat > 0 && (
-                          <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{loggedInCat}/{items.length}</span>
-                        )}
                         <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
                           <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -2185,7 +2209,6 @@ export default function CashFlowOS({
                           const fcast = forecastedMonthly(item);
                           const variance = actual ? actual.actual_amount - fcast : null;
                           const history = getHistory(item.id);
-                          const mKeyWhole = `${item.id}:whole`;
 
                           const rowLabel: React.CSSProperties = {
                             fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
@@ -2227,168 +2250,29 @@ export default function CashFlowOS({
                                   </div>
                                 </div>
                               </div>
-                              {/* Actual row */}
-                              <div style={{ display: "flex", alignItems: "flex-start", gap: "4px", marginTop: "2px" }}>
-                                <span style={{ ...rowLabel, color: "oklch(0.68 0.18 163)", paddingTop: "6px" }}>Actual</span>
-                                <div className="cfo-actual" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", paddingTop: "4px" }}>
-                                {actual?.source === "transactions" ? (
-                                  // Summed from imported transactions — edited by re-bucketing or
-                                  // deleting those transactions, never overwritten by a typed number.
-                                  <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-                                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 600 }}>{ph(fmt(actual.actual_amount))}</span>
-                                    {" "}from {actual.txn_count} transaction{actual.txn_count !== 1 ? "s" : ""}
-                                  </span>
-                                ) : (<>
-                                <form
-                                  action={fd => {
-                                    fd.set("cash_flow_item_id", item.id);
-                                    fd.set("label", item.label);
-                                    fd.set("period_year", String(selYear));
-                                    fd.set("period_month", String(selMonth));
-                                    startTransition(async () => { await logExpenseActual(fd); router.refresh(); });
-                                  }}
-                                  style={{ display: "flex", alignItems: "center", gap: "5px" }}
-                                >
-                                  <input
-                                    name="actual_amount" type="number" min="0" step="0.01"
-                                    key={`${item.id}-${selYear}-${selMonth}`}
-                                    defaultValue={actual?.actual_amount ?? ""}
-                                    placeholder={isPrivate ? "••••" : "Actual $"}
-                                    style={{ width: "88px", padding: "4px 7px", borderRadius: "6px", fontSize: "11px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", transition: "border-color 0.15s" }}
-                                  />
-                                  <button type="submit" disabled={pending}
-                                    style={{ padding: "4px 9px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, background: "var(--brand-blue)", color: "#fff", border: "none", cursor: "pointer" }}>
-                                    Log
-                                  </button>
-                                </form>
-                                {actual && (
-                                  <button type="button" disabled={pending}
-                                    onClick={() => {
-                                      if (!confirm(`Remove the logged ${MONTH_NAMES[selMonth - 1]} actual for "${item.label}"?`)) return;
-                                      startTransition(async () => { await deleteExpenseActual(actual.id); router.refresh(); });
-                                    }}
-                                    title="Delete this logged actual"
-                                    style={{ padding: "4px 6px", borderRadius: "6px", fontSize: "10px", background: "var(--red-bg)", color: "var(--red)", border: "1px solid var(--red-border)", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                                    <span className="bt-sr-only">Delete logged actual</span>
-                                  </button>
-                                )}
-                                </>)}
-                                {variance !== null && (
-                                  <span style={{ padding: "2px 7px", borderRadius: "3px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
-                                    {variance > 0 ? "+" : ""}{ph(fmt(variance))} {variance > 0 ? "over" : "under"}
-                                  </span>
-                                )}
-                                {history.length >= 3 && (
-                                  <button onClick={() => handleSync(item.id)} disabled={syncingId === item.id} title="Update forecast to 3-month avg"
-                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 500, background: "rgba(63,174,74,0.1)", color: "#5fbf9a", border: "1px solid rgba(63,174,74,0.2)", cursor: "pointer" }}>
-                                    {syncingId === item.id ? "Syncing…" : "Sync"}
-                                  </button>
-                                )}
-                              </div>
-                              {syncMsg[item.id] && <div style={{ marginTop: "3px", fontSize: "10px", color: syncMsg[item.id].startsWith("Updated") ? "var(--green)" : "var(--red)" }}>{syncMsg[item.id]}</div>}
-                              {/* Sparkline history */}
-                              {history.length > 1 && (
-                                <div style={{ marginTop: "6px", display: "flex", gap: "3px", alignItems: "flex-end" }}>
-                                  {history.slice().reverse().map((h, hi) => {
-                                    const barH = Math.max(3, Math.min(22, (h.actual_amount / (fcast * 2 || 1)) * 18));
-                                    return (
-                                      <div key={hi} title={`${MONTH_NAMES[h.period_month - 1]} ${h.period_year}: $${h.actual_amount.toLocaleString()}`}
-                                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                                        <div style={{ width: "13px", height: `${barH}px`, borderRadius: "2px", background: h.actual_amount > fcast ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.45)" }} />
-                                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1][0]}</span>
-                                      </div>
-                                    );
-                                  })}
-                                  <div style={{ width: "1px", background: "var(--border-subtle)", height: "16px", margin: "0 1px" }} />
-                                  <div style={{ width: "13px", height: "14px", borderRadius: "2px", background: "rgba(63,174,74,0.25)", position: "relative" }} title={`Forecast: ${fmt(fcast)}`}>
-                                    <span style={{ position: "absolute", bottom: "-11px", fontSize: "10px", color: "var(--text-muted)" }}>F</span>
-                                  </div>
-                                </div>
-                              )}
-                              {/* Move whole actual */}
-                              {actual && (!actual.breakdown || actual.breakdown.length === 0) && expenseItems.filter(ei => ei.id !== item.id).length > 0 && (() => {
-                                const isMoving = movingKey === mKeyWhole;
-                                const others = expenseItems.filter(ei => ei.id !== item.id);
+                              {/* This month, for context only. Actual spending is recorded in Money out
+                                  (transactions), never typed into the plan. */}
+                              {(() => {
+                                const avg3 = history.length >= 3 ? history.slice(0, 3).reduce((sum, h) => sum + h.actual_amount, 0) / 3 : null;
                                 return (
-                                  <div style={{ marginTop: "5px" }}>
-                                    <button type="button" onClick={() => setMovingKey(isMoving ? null : mKeyWhole)}
-                                      style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "2px 6px", lineHeight: 1, fontFamily: "var(--font-body)" }}>
-                                      → Move ${actual.actual_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </button>
-                                    {isMoving && (
-                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                                        <span style={{ fontSize: "10px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
-                                        <select defaultValue="" onChange={e => {
-                                          const destId = e.target.value;
-                                          if (!destId) return;
-                                          setMovingKey(null);
-                                          startTransition(async () => { await moveMerchantActual(item.id, destId, item.label, actual.actual_amount, selYear, selMonth); router.refresh(); });
-                                        }} style={{ flex: 1, padding: "3px 5px", borderRadius: "5px", fontSize: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
-                                          <option value="" disabled>Select bucket...</option>
-                                          {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
-                                        </select>
-                                        <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
-                                      </div>
-                                    )}
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "4px", paddingLeft: "48px", fontSize: "10.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                                    <span>
+                                      {MONTH_NAMES[selMonth - 1]}:{" "}
+                                      {actual
+                                        ? <span style={{ fontFamily: "var(--font-mono)", color: variance !== null && variance > 0 ? "var(--red)" : "var(--text-secondary)" }}>{ph(fmt(actual.actual_amount))} spent</span>
+                                        : "nothing recorded yet"}
+                                    </span>
+                                    {avg3 !== null && Math.abs(avg3 - fcast) >= 1 && (<>
+                                      <span>· last 3 months averaged <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(avg3))}</span></span>
+                                      <button type="button" onClick={() => handleSync(item.id)} disabled={syncingId === item.id}
+                                        style={{ padding: "3px 8px", borderRadius: "var(--radius-sm)", fontSize: "10px", fontWeight: 600, background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)", cursor: "pointer", minHeight: "28px" }}>
+                                        {syncingId === item.id ? "Updating…" : "Use as budget"}
+                                      </button>
+                                    </>)}
+                                    {syncMsg[item.id] && <span style={{ color: syncMsg[item.id].startsWith("Updated") ? "var(--green)" : "var(--red)" }}>{syncMsg[item.id]}</span>}
                                   </div>
                                 );
                               })()}
-                              {/* Breakdown */}
-                              {actual?.breakdown && actual.breakdown.length > 0 && (
-                                <>
-                                  <button type="button" onClick={() => setExpandedBreakdown(prev => {
-                                    const next = new Set(prev);
-                                    next.has(item.id) ? next.delete(item.id) : next.add(item.id);
-                                    return next;
-                                  })} style={{ marginTop: "5px", background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "10px", padding: "0", display: "flex", alignItems: "center", gap: "4px" }}>
-                                    {expandedBreakdown.has(item.id) ? "▲" : "▼"} {actual.breakdown.length} merchant{actual.breakdown.length !== 1 ? "s" : ""}
-                                  </button>
-                                  {expandedBreakdown.has(item.id) && (
-                                    <div style={{ marginTop: "4px", paddingLeft: "8px", display: "flex", flexDirection: "column", gap: "3px" }}>
-                                      {actual.source === "transactions" && (
-                                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-                                          To move a merchant, change its bucket in the transaction list above.
-                                        </span>
-                                      )}
-                                      {actual.breakdown.map((m, mi) => {
-                                        const mKeyBreak = `${item.id}:${mi}`;
-                                        const isMov = movingKey === mKeyBreak;
-                                        const others = expenseItems.filter(ei => ei.id !== item.id);
-                                        return (
-                                          <div key={mi} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
-                                              <span style={{ fontSize: "10px", color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>↳ {m.label}</span>
-                                              <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                                                <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                {others.length > 0 && actual.source !== "transactions" && (
-                                                  <button type="button" onClick={() => setMovingKey(isMov ? null : mKeyBreak)} style={{ background: isMov ? "var(--bg-elevated)" : "none", border: isMov ? "1px solid var(--border-subtle)" : "none", borderRadius: "3px", cursor: "pointer", color: isMov ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "1px 4px", lineHeight: 1 }}>→</button>
-                                                )}
-                                              </div>
-                                            </div>
-                                            {isMov && (
-                                              <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "10px" }}>
-                                                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
-                                                <select defaultValue="" onChange={e => {
-                                                  const destId = e.target.value;
-                                                  if (!destId) return;
-                                                  setMovingKey(null);
-                                                  startTransition(async () => { await moveMerchantActual(item.id, destId, m.label, m.amount, selYear, selMonth); router.refresh(); });
-                                                }} style={{ flex: 1, padding: "3px 5px", borderRadius: "5px", fontSize: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
-                                                  <option value="" disabled>Select bucket...</option>
-                                                  {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
-                                                </select>
-                                                <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                              </div>{/* end Actual row wrapper */}
                             </div>
                           );
                         })}
@@ -2406,22 +2290,13 @@ export default function CashFlowOS({
           <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
         </div>
       </div>
-      {guided && cfExpanded && (
-        <button type="button" onClick={() => setCfExpanded(false)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
-          Show less
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-      )}
-      </>)}
 
-      {/* Monthly spend history — always visible, like the net-worth chart */}
-      <MonthlySpendChart
-        expenseActuals={expenseActuals}
-        cashFlowItems={cashFlowItems}
-        budgetHistory={budgetHistory}
-        isPrivate={isPrivate}
-      />
+      {/* Build/Refresh Budget — between Zone 2 and Zone 3 */}
+      <div className="cfo-zone" style={{ animationDelay: "155ms", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <AiImportPanel existingItems={expenseItems} onAdd={applyBudgetRows} />
+        <ActualsRefreshPanel existingItems={expenseItems} expenseActuals={expenseActuals} onAdd={applyBudgetRows} />
+      </div>
+
     </div>
   );
 }

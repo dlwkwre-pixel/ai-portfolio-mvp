@@ -6183,6 +6183,7 @@ export default function PlanningClient({
             emergencyFundMonths={profile?.emergency_fund_months ?? 6}
             surplusToInvestPct={profile?.surplus_to_invest_pct ?? 50}
             emergencyFundExpenseBasis={effectiveExpenses}
+            k401EmployeeMonthly={k401EmployeeMonthly}
           />
           {/* Live bank spending (Plaid Phase 3) — renders nothing without linked banks. */}
           <BankSpendingCard isPrivate={isPrivate} />
