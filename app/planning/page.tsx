@@ -9,6 +9,9 @@ import { ageFromDob } from "./planning-utils";
 import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import { rollupTransactionActuals, type CashFlowTransaction } from "@/lib/planning/transactions";
 import type { MonthCloseRow } from "./month-close-card";
+import type { BankLinkInfo } from "./bank-sync-note";
+import { hasFeatureAccess } from "@/lib/access/feature-access";
+import { getBankStatus } from "@/lib/connections/plaid";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -330,6 +333,18 @@ export default async function PlanningPage({
       }
     : null;
 
+  // Linked banks feed Cash Flow automatically; only shown to people with bank access.
+  let bankLink: BankLinkInfo | null = null;
+  if (await hasFeatureAccess(user.id, "bank_connect").catch(() => false)) {
+    const status = await getBankStatus(user.id);
+    const synced = status.connections.map((c) => c.lastSyncedAt).filter((d): d is string => !!d).sort();
+    bankLink = {
+      linked: status.connections.length > 0,
+      lastSyncedAt: synced.length > 0 ? synced[synced.length - 1] : null,
+      institutions: status.connections.map((c) => c.institution ?? "").filter(Boolean),
+    };
+  }
+
   const typedMonthCloses: MonthCloseRow[] = (monthClosesData ?? []).map((r) => ({
     period_year: r.period_year,
     period_month: r.period_month,
@@ -430,6 +445,7 @@ export default async function PlanningPage({
           expenseActuals={typedExpenseActuals}
           transactions={typedTransactions}
           monthCloses={typedMonthCloses}
+          bankLink={bankLink}
           budgetHistory={typedBudgetHistory}
           estateProfile={typedEstateProfile}
           initialTab={initialTab}

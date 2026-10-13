@@ -21,6 +21,7 @@ import UnrecordedBills, { type UnrecordedLine } from "./unrecorded-bills";
 import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
 import StickyMonthBar from "./sticky-month-bar";
+import BankSyncNote, { type BankLinkInfo } from "./bank-sync-note";
 import AddTransactionForm from "./add-transaction-form";
 import { deleteImportBatch } from "./planning-actions";
 import TransactionImportPanel, { type ImportSavedSummary } from "./transaction-import-panel";
@@ -1028,13 +1029,14 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
   transactions?: CashFlowTransaction[];
   monthCloses?: MonthCloseRow[];
+  bankLink?: BankLinkInfo | null;
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
@@ -1741,6 +1743,7 @@ export default function CashFlowOS({
             CSV or copied text. Re-importing is safe: anything already imported gets flagged.
           </span>
         </div>
+        {bankLink && <BankSyncNote info={bankLink} />}
         {showImport && (
           <div style={{ marginBottom: "14px" }}>
             <TransactionImportPanel expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate}

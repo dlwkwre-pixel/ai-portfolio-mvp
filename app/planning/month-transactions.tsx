@@ -277,6 +277,7 @@ export default function MonthTransactions({
                 <span title={t.description} style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                   {t.merchant}
                   {isRefund && <span style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", marginLeft: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Refund</span>}
+                  {t.source === "plaid" && <span title="Synced from a linked bank or card" style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", marginLeft: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bank</span>}
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: t.direction === "in" ? "var(--green)" : "var(--text-primary)", whiteSpace: "nowrap" }}>
                   {t.direction === "in" ? "+" : isRefund ? "−" : ""}{money(t.amount, isPrivate)}

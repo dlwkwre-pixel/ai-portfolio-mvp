@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { syncPlaidIntoCashFlow } from "./plaid-cash-flow";
 
 // Plaid bank connections (balances-first, read-only). Server-only: the access token
 // never leaves the service-role tables, and everything is gated by the bank_connect
@@ -43,7 +44,8 @@ export async function createLinkToken(userId: string): Promise<string> {
     client_name: "BuyTune",
     user: { client_user_id: userId },
     products: ["transactions"],
-    transactions: { days_requested: 30 },
+    // 90 days so a new connection fills the last few months of Cash Flow, not just one.
+    transactions: { days_requested: 90 },
     country_codes: ["US"],
     language: "en",
   });
@@ -86,6 +88,7 @@ export type BankTransaction = {
   merchant: string | null;
   amount: number;            // Plaid convention: positive = money OUT, negative = money IN
   category: string | null;   // personal_finance_category.primary (e.g. FOOD_AND_DRINK)
+  detailed?: string | null;  // personal_finance_category.detailed (e.g. TRANSFER_IN_ACCOUNT_TRANSFER); absent on older stored rows
   accountId: string;
   itemId: string;
   pending: boolean;
@@ -98,7 +101,7 @@ type PlaidTxn = {
   name?: string | null;
   merchant_name?: string | null;
   amount: number;
-  personal_finance_category?: { primary?: string | null } | null;
+  personal_finance_category?: { primary?: string | null; detailed?: string | null } | null;
   account_id: string;
   pending?: boolean;
 };
@@ -153,6 +156,7 @@ export async function syncBankTransactions(userId: string, itemId: string, acces
     merchant: t.merchant_name?.slice(0, 80) ?? null,
     amount: Math.round(Number(t.amount) * 100) / 100,
     category: t.personal_finance_category?.primary ?? null,
+    detailed: t.personal_finance_category?.detailed ?? null,
     accountId: t.account_id,
     itemId,
     pending: !!t.pending,
@@ -166,7 +170,24 @@ export async function syncBankTransactions(userId: string, itemId: string, acces
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 800);
   await kvSet(storeKey, { txns });
+
+  // Feed posted transactions into Cash Flow (dedupes against statement imports; never
+  // fails the sync — the bank card and balances matter more than this).
+  try { await syncPlaidIntoCashFlow(userId, txns, removed); } catch { /* best-effort */ }
+
   return added.length + modified.length;
+}
+
+// Transactions the user deleted from Cash Flow — remembered so the next sync doesn't
+// quietly re-add them.
+export async function dismissPlaidTransaction(userId: string, externalId: string): Promise<void> {
+  const key = `plaiddismissed:${userId}`;
+  const ids = (await kvGet<{ ids?: string[] }>(key))?.ids ?? [];
+  if (!ids.includes(externalId)) await kvSet(key, { ids: [...ids, externalId].slice(-2000) });
+}
+
+export async function getDismissedPlaidIds(userId: string): Promise<Set<string>> {
+  return new Set((await kvGet<{ ids?: string[] }>(`plaiddismissed:${userId}`))?.ids ?? []);
 }
 
 export async function getBankTransactions(userId: string): Promise<BankTransaction[]> {

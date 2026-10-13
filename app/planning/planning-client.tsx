@@ -35,6 +35,7 @@ import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetW
 import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions, setCashFlowItemCategory } from "./planning-actions";
 import type { CashFlowTransaction } from "@/lib/planning/transactions";
 import type { MonthCloseRow } from "./month-close-card";
+import type { BankLinkInfo } from "./bank-sync-note";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -3090,6 +3091,7 @@ type Props = {
   expenseActuals: ExpenseActual[];
   transactions: CashFlowTransaction[];
   monthCloses: MonthCloseRow[];
+  bankLink: BankLinkInfo | null;
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
   initialTab?: string;
@@ -3112,7 +3114,7 @@ const ATLAS_THINKING = [
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -6174,6 +6176,7 @@ export default function PlanningClient({
             expenseActuals={expenseActuals}
             transactions={transactions}
             monthCloses={monthCloses}
+            bankLink={bankLink}
             budgetHistory={budgetHistory}
             effectiveIncome={effectiveIncome}
             monthlyExpenses={monthlyExpenses}

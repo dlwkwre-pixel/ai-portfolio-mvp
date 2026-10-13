@@ -106,7 +106,8 @@ export function looksLikePayroll(text: string): boolean {
 // of saving. Only meaningful for money OUT (a Robinhood withdrawal back to checking isn't).
 const SAVE_RE = /\b(to\s+savings|transfer\s+to\s+(savings|brokerage|investment|ira|roth|hysa|high\s*yield)|robinhood|fidelity|vanguard|schwab|betterment|wealthfront|acorns|stash|m1\s*finance|e\*?trade|webull|marcus|wealthsimple|sofi\s*invest)\b/i;
 export function looksLikeSave(description: string): boolean {
-  return SAVE_RE.test(description);
+  // "ROBINHOOD CARD PAYMENT" is paying a credit card, not investing — card words win.
+  return SAVE_RE.test(description) && !/\b(card|credit|crd|cc|pymt|payment\s+thank)\b/i.test(description);
 }
 
 export function looksLikeTransfer(description: string): boolean {

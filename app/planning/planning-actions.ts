@@ -6,6 +6,7 @@ import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
 import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
+import { dismissPlaidTransaction } from "@/lib/connections/plaid";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1514,8 +1515,14 @@ export async function deleteTransaction(id: string): Promise<{ error?: string }>
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
+  const { data: row } = await supabase.from("cash_flow_transactions")
+    .select("source, external_id").eq("id", id).eq("user_id", user.id).maybeSingle();
   const { error } = await supabase.from("cash_flow_transactions").delete().eq("id", id).eq("user_id", user.id);
   if (error) return { error: error.message };
+  // A deleted bank transaction must not come back on the next Plaid sync.
+  if (row?.source === "plaid" && row.external_id) {
+    try { await dismissPlaidTransaction(user.id, row.external_id); } catch { /* best-effort */ }
+  }
   revalidatePath("/planning");
   return {};
 }
