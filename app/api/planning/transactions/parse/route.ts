@@ -197,13 +197,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<ParseTransact
     supabase.from("cash_flow_transactions")
       .select("id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note")
       .eq("user_id", user.id).gte("txn_date", minDate).lte("txn_date", maxDate),
-    supabase.from("cash_flow_items").select("id, label, type, category").eq("user_id", user.id),
+    supabase.from("cash_flow_items").select("id, label, type, category, amount").eq("user_id", user.id),
     supabase.from("cash_flow_merchant_rules").select("merchant_key, cash_flow_item_id").eq("user_id", user.id),
   ]);
 
   const existingTyped: CashFlowTransaction[] = (existing ?? []).map((e) => ({ ...e, amount: Number(e.amount) }) as CashFlowTransaction);
   const dupes = new Map(findDuplicates(txns, existingTyped).map((d) => [d.index, d]));
-  const bucketItems = (items ?? []) as { id: string; label: string; type: "income" | "expense"; category: string | null }[];
+  const bucketItems = (items ?? []).map((i) => ({ ...i, amount: Number(i.amount) })) as { id: string; label: string; type: "income" | "expense"; category: string | null; amount: number }[];
   const ruleList = (rules ?? []) as MerchantRule[];
 
   const transactions: ReviewTxn[] = txns.map((t, i) => {

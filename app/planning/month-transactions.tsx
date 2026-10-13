@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem } from "./planning-actions";
 import { updateTransactionBucket, deleteTransaction } from "./planning-actions";
-import type { CashFlowTransaction } from "@/lib/planning/transactions";
+import { NEW_PAYCHECK_BUCKET, type CashFlowTransaction } from "@/lib/planning/transactions";
+import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { MONTH_NAMES } from "./planning-shared";
 
@@ -43,6 +44,7 @@ export default function MonthTransactions({
   const [remember, setRemember] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState<{ text: string; tone: "ok" | "err" } | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const month = useMemo(
     () => transactions.filter((t) => t.period_year === selYear && t.period_month === selMonth)
@@ -80,7 +82,10 @@ export default function MonthTransactions({
     startTransition(async () => {
       const res = await updateTransactionBucket(t.id, value || null, remember && !!value);
       if (res.error) { setNotice({ text: res.error, tone: "err" }); return; }
-      const dest = value.startsWith("new:") ? value.slice(4) : value ? itemLabel.get(value) ?? "that bucket" : "unsorted";
+      const dest = value === NEW_PAYCHECK_BUCKET ? "Paycheck"
+        : value.startsWith("new:") ? value.slice(4)
+        : value ? itemLabel.get(value) ?? "that bucket"
+        : t.direction === "in" ? "extra income" : "unsorted";
       const n = res.moved ?? 1;
       setNotice({
         text: n > 1
@@ -101,11 +106,24 @@ export default function MonthTransactions({
     });
   }
 
+  const addControl = adding ? (
+    <AddTransactionForm selYear={selYear} selMonth={selMonth} expenseItems={expenseItems} incomeItems={incomeItems}
+      initialKind="spend" onDone={() => setAdding(false)} />
+  ) : (
+    <button type="button" onClick={() => setAdding(true)}
+      style={{ alignSelf: "flex-start", background: "none", border: "1px dashed var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "var(--text-xs)", fontFamily: "var(--font-body)", padding: "6px 12px", minHeight: "32px", cursor: "pointer" }}>
+      + Add a transaction by hand
+    </button>
+  );
+
   if (month.length === 0) {
     return (
-      <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 14px", lineHeight: 1.5 }}>
-        No transactions imported for {MONTH_NAMES[selMonth - 1]} {selYear} yet.
-      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
+        <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+          No transactions for {MONTH_NAMES[selMonth - 1]} {selYear} yet. Import a statement or add one by hand.
+        </p>
+        {addControl}
+      </div>
     );
   }
 
@@ -154,6 +172,8 @@ export default function MonthTransactions({
         When I move a merchant, move its other transactions this month and remember it for next time
       </label>
 
+      {addControl}
+
       {notice && (
         <div role="status" style={{ fontSize: "var(--text-xs)", color: notice.tone === "ok" ? "var(--green)" : "var(--red)", fontFamily: "var(--font-body)" }}>{notice.text}</div>
       )}
@@ -184,11 +204,14 @@ export default function MonthTransactions({
                 </span>
                 <select value={t.cash_flow_item_id ?? ""} disabled={pending} onChange={(e) => handleBucket(t, e.target.value)} aria-label={`Bucket for ${t.merchant}`}
                   style={{ ...selectStyle, borderColor: t.direction === "out" && !t.cash_flow_item_id ? "var(--amber)" : "var(--border-subtle)", color: t.cash_flow_item_id ? "var(--text-primary)" : t.direction === "out" ? "var(--amber)" : "var(--text-secondary)" }}>
-                  <option value="">{t.direction === "in" ? "Income (no specific source)" : "Needs a bucket"}</option>
+                  <option value="">{t.direction === "in" ? "Extra, one-time" : "Needs a bucket"}</option>
                   {pool.length > 0 && (
-                    <optgroup label={t.direction === "in" ? "Your income" : "Your budget"}>
-                      {pool.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
+                    <optgroup label={t.direction === "in" ? "Regular pay (replaces expected)" : "Your budget"}>
+                      {pool.map((i) => <option key={i.id} value={i.id}>{t.direction === "in" ? `Pay from ${i.label}` : i.label}</option>)}
                     </optgroup>
+                  )}
+                  {t.direction === "in" && pool.length === 0 && (
+                    <option value={NEW_PAYCHECK_BUCKET}>Regular paycheck (replaces estimate)</option>
                   )}
                   {t.direction === "out" && missingCategories.length > 0 && (
                     <optgroup label="Create new budget line">

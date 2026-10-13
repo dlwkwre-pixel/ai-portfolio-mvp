@@ -16,7 +16,8 @@ import {
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
 } from "./planning-shared";
 import { computeAvailableToInvest, nextOccurrenceOnOrAfter, toDateOnly } from "@/lib/planning/cash-flow-forecast";
-import type { CashFlowTransaction } from "@/lib/planning/transactions";
+import { computeMonthIncome, type CashFlowTransaction } from "@/lib/planning/transactions";
+import AddTransactionForm from "./add-transaction-form";
 import { deleteImportBatch } from "./planning-actions";
 import TransactionImportPanel, { type ImportSavedSummary } from "./transaction-import-panel";
 import MonthTransactions from "./month-transactions";
@@ -1035,6 +1036,7 @@ export default function CashFlowOS({
   const [pending, startTransition] = useTransition();
   const [viewMode, setViewMode] = useState<"monthly" | "annual" | "ytd" | "average">("monthly");
   const [showCal, setShowCal] = useState(false);
+  const [addingIncome, setAddingIncome] = useState(false);
 
   const ytdMonths = selYear < now.getFullYear() ? 12 : now.getMonth() + 1;
   const mult = viewMode === "annual" ? 12 : viewMode === "ytd" ? ytdMonths : 1;
@@ -1120,6 +1122,29 @@ export default function CashFlowOS({
     return { blendedTotal, budgetedTotal, monthCount, fullyLoggedMonths, anyLogged };
   }
 
+  // Income for a month = expected (effectiveIncome) adjusted by what was actually recorded:
+  // paychecks assigned to an income source replace that source's expected amount, unassigned
+  // income (a Marketplace sale) is added on top. See computeMonthIncome for the rules.
+  const incomeSources = useMemo(
+    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cashFlowItems],
+  );
+  function incomeFor(y: number, m: number) {
+    return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: effectiveIncome, transactions });
+  }
+  function sumIncome(periodFrom: number, periodTo: number) {
+    let total = 0, anyRecorded = false;
+    for (let p = periodFrom; p <= periodTo; p++) {
+      const r = incomeFor(Math.floor(p / 12), (p % 12) + 1);
+      total += r.total;
+      if (r.status !== "expected" || r.extraCount > 0) anyRecorded = true;
+    }
+    return { total, expected: effectiveIncome * (periodTo - periodFrom + 1), anyRecorded };
+  }
+  const selIncome = incomeFor(selYear, selMonth);
+  const selIncomeTxns = transactions.filter(t => t.direction === "in" && t.period_year === selYear && t.period_month === selMonth);
+
   // Monthly/YTD/Annual all answer "how did I actually do" for their respective range —
   // Expenses/Savings/Rate blend real logged actuals with budgeted fallback, not pure
   // budget projections. The variance badge compares the blended total against the pure-
@@ -1135,7 +1160,13 @@ export default function CashFlowOS({
     text: Math.round(kpiExpenseVariance) === 0 ? "on budget" : `${fmt(Math.abs(kpiExpenseVariance))} ${kpiExpenseVariance > 0 ? "over" : "under"}`,
     over: kpiExpenseVariance > 0,
   };
-  const kpiIncomeTotal = effectiveIncome * mult;
+  const kpiIncome = kpiPeriod ? sumIncome(kpiPeriod.from, kpiPeriod.to) : null;
+  const kpiIncomeTotal = kpiIncome ? kpiIncome.total : effectiveIncome * mult;
+  const kpiIncomeVariance = kpiIncome?.anyRecorded ? kpiIncome.total - kpiIncome.expected : null;
+  const kpiIncomeBadge = kpiIncomeVariance === null ? null : {
+    text: Math.round(kpiIncomeVariance) === 0 ? "as expected" : `${fmt(Math.abs(kpiIncomeVariance))} ${kpiIncomeVariance > 0 ? "above" : "below"} expected`,
+    over: kpiIncomeVariance < 0, // red when income came in short
+  };
   const kpiSavings = kpiExpenseBlend ? kpiIncomeTotal - kpiExpenseBlend.blendedTotal : 0;
   const kpiRate = kpiIncomeTotal > 0 ? (kpiSavings / kpiIncomeTotal) * 100 : 0;
 
@@ -1167,7 +1198,7 @@ export default function CashFlowOS({
     if (earliest > lastCompleted) return null; // only current-month data exists so far
 
     const { blendedTotal, monthCount, fullyLoggedMonths } = sumBlendedExpenses(earliest, lastCompleted);
-    const totalIncome = effectiveIncome * monthCount;
+    const totalIncome = sumIncome(earliest, lastCompleted).total;
     const totalSavings = totalIncome - blendedTotal;
     return {
       monthCount, fullyLoggedMonths,
@@ -1177,7 +1208,7 @@ export default function CashFlowOS({
       avgRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenseActuals, actualsIndex, effectiveIncome, expenseItems, budgetHistory]);
+  }, [expenseActuals, actualsIndex, effectiveIncome, expenseItems, budgetHistory, transactions, incomeSources]);
 
   // 50/30/20 buckets — monthly needs vs wants from the categorized budget
   const needsMonthly = catData.filter((c) => bucketForCategory(c.label) === "needs").reduce((s, c) => s + c.budgeted, 0);
@@ -1319,10 +1350,10 @@ export default function CashFlowOS({
     }
     return {
       actualPortion, budgetedPortion, loggedCount, totalCount: expenseItems.length,
-      surplus: effectiveIncome - (actualPortion + budgetedPortion),
+      surplus: selIncome.total - (actualPortion + budgetedPortion),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenseItems, expenseActuals, budgetHistory, effectiveIncome, selYear, selMonth]);
+  }, [expenseItems, expenseActuals, budgetHistory, effectiveIncome, selYear, selMonth, transactions, incomeSources]);
 
   // liquidAssets/owed bills still drive the emergency-fund-funded gate (a real-dollars-
   // saved question) and the "Still owed" supporting list. See lib/planning/cash-flow-forecast.ts.
@@ -1373,7 +1404,7 @@ export default function CashFlowOS({
         // month you're looking at without having to check the picker at all.
         const monthlyLabel = `${MONTH_NAMES[selMonth - 1]} ${selYear}`;
         return [
-          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income`, val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)" },
+          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income`, val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)", badge: kpiIncomeBadge },
           // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
           // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
           // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
@@ -1533,7 +1564,7 @@ export default function CashFlowOS({
               {ph(fmt(forecast.availableToInvest))}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-              {fmt(effectiveIncome)} income −{" "}
+              {fmt(selIncome.total)} income{selIncome.extras > 0 ? ` (incl. ${fmt(selIncome.extras)} extra)` : ""} −{" "}
               {monthlyPerf.loggedCount === monthlyPerf.totalCount
                 ? `${fmt(monthlyPerf.actualPortion)} spent in ${MONTH_NAMES[selMonth - 1]}`
                 : monthlyPerf.loggedCount === 0
@@ -2009,13 +2040,81 @@ export default function CashFlowOS({
 
         {/* Income */}
         <div style={{ marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
             <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.72 0.19 145)", fontWeight: 600 }}>{ph(fmt(effectiveIncome))}/mo</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
+              {MONTH_NAMES[selMonth - 1]}: {ph(fmt(selIncome.total))}
+              <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}> · expected {ph(fmt(effectiveIncome))}/mo</span>
+            </span>
           </div>
-          {incomeItems.map(item => (
-            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
-          ))}
+          {/* What this month's income figure is made of — the plan, or what was recorded. */}
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
+            {selIncome.recordedCount === 0
+              ? `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
+              : selIncome.status === "in-progress" && selIncome.recordedRegular < selIncome.regular
+                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}). Counting the expected amount until the month's pay is in.`
+                : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}), used in place of expected pay.`}
+            {selIncome.extraCount > 0 && ` Plus ${ph(fmt(selIncome.extras))} extra, one-time income.`}
+          </p>
+          {selIncomeTxns.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
+              {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
+                const src = t.cash_flow_item_id ? incomeItems.find(i => i.id === t.cash_flow_item_id) : null;
+                return (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)", padding: "3px 0" }}>
+                    <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
+                      {"  "}{t.merchant}
+                      <span style={{ color: "var(--text-muted)" }}> · {src ? `pay from ${src.label}` : "extra"}</span>
+                    </span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ marginBottom: "12px" }}>
+            {addingIncome ? (
+              <AddTransactionForm selYear={selYear} selMonth={selMonth} expenseItems={expenseItems} incomeItems={incomeItems}
+                initialKind="income" lockKind onDone={() => setAddingIncome(false)} />
+            ) : (
+              <button type="button" onClick={() => setAddingIncome(true)}
+                style={{ background: "none", border: "1px dashed var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "11px", fontFamily: "var(--font-body)", padding: "6px 12px", minHeight: "32px", cursor: "pointer" }}>
+                + Record income for {MONTH_NAMES[selMonth - 1]} (paycheck or one-time)
+              </button>
+            )}
+          </div>
+          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "4px 0 6px" }}>
+            Expected income sources (your plan, every month)
+          </div>
+          {incomeItems.map(item => {
+            // Recorded pay per completed month for this source — the basis for "set expected
+            // from my real average", which is how variable pay (shifts, overtime) gets a fair plan.
+            const recordedMonths = new Map<number, number>();
+            for (const t of transactions) {
+              if (t.direction !== "in" || t.cash_flow_item_id !== item.id) continue;
+              const k = t.period_year * 12 + (t.period_month - 1);
+              if (k >= now.getFullYear() * 12 + now.getMonth()) continue; // skip the month in progress
+              recordedMonths.set(k, (recordedMonths.get(k) ?? 0) + t.amount);
+            }
+            const recent = Array.from(recordedMonths.entries()).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([, v]) => v);
+            const avg3 = recent.length === 3 ? recent.reduce((a, b) => a + b, 0) / 3 : null;
+            return (
+              <div key={item.id} style={{ marginBottom: "4px" }}>
+                <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
+                {avg3 !== null && Math.abs(avg3 - toMonthly(item.amount, item.frequency)) >= 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "10.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", padding: "2px 0 4px" }}>
+                    Last 3 months averaged <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(avg3))}</span>
+                    <button type="button" onClick={() => handleSync(item.id)} disabled={syncingId === item.id}
+                      style={{ padding: "3px 8px", borderRadius: "var(--radius-sm)", fontSize: "10px", fontWeight: 600, background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)", cursor: "pointer", minHeight: "28px" }}>
+                      {syncingId === item.id ? "Updating…" : "Use as expected"}
+                    </button>
+                    {syncMsg[item.id] && <span style={{ color: syncMsg[item.id].startsWith("Updated") ? "var(--green)" : "var(--red)" }}>{syncMsg[item.id]}</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <div style={{ marginTop: "8px" }}>
             <AddItemRow type="cashflow" placeholder="e.g. Salary" onAdd={fd => { fd.set("type", "income"); return addCashFlowItem(fd); }} />
           </div>

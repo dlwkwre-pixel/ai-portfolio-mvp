@@ -37,7 +37,15 @@ export type CashFlowTransaction = {
 
 export type MerchantRule = { merchant_key: string; cash_flow_item_id: string };
 
-type BucketItem = { id: string; label: string; type: "income" | "expense"; category?: string | null };
+type BucketItem = { id: string; label: string; type: "income" | "expense"; category?: string | null; amount?: number };
+
+// Review-table bucket values that create a budget line on save (resolved server-side in
+// planning-actions.ts resolveBuckets). "new:<Expense Category>" → $0 expense line;
+// NEW_PAYCHECK_BUCKET → a $0, variable "Paycheck" income source, used when someone whose
+// income comes from their profile imports payroll deposits — assigning them to a source is
+// what makes them REPLACE expected income instead of stacking on top of it.
+export const NEW_EXPENSE_BUCKET_PREFIX = "new:";
+export const NEW_PAYCHECK_BUCKET = "newincome:Paycheck";
 
 // ── Merchant normalization ──────────────────────────────────────────────────
 
@@ -87,6 +95,11 @@ export function merchantKey(merchant: string): string {
 // or real spending (paying a friend back), so they stay as spend/income for the user to judge.
 const TRANSFER_RE = /\b(payment\s*(-\s*)?thank\s*you|autopay|auto\s*pay|online\s+(banking\s+)?transfer|transfer\s+(to|from)|internal\s+transfer|credit\s*card\s+(payment|pmt)|card\s*(payment|pmt)|epay|e-payment|mobile\s+payment|payment\s+received|crcardpmt|cc\s*pymt|to\s+savings|from\s+savings|to\s+checking|from\s+checking)\b/i;
 const REFUND_RE = /\b(refund|return|reversal|credit\s+adj|merchant\s+credit|chargeback)\b/i;
+
+const PAYROLL_RE = /\b(payroll|direct\s*dep(osit)?|dir\s*dep|salary|paycheck|wages?|ppd|net\s*pay)\b/i;
+export function looksLikePayroll(text: string): boolean {
+  return PAYROLL_RE.test(text);
+}
 
 export function looksLikeTransfer(description: string): boolean {
   return TRANSFER_RE.test(description);
@@ -372,7 +385,7 @@ export function findDuplicates(incoming: ParsedTxn[], existing: CashFlowTransact
 // named after the merchant ("Netflix"), then a budget item in the same category
 // (preferring one literally named after the category, e.g. "Food & Dining").
 export function suggestBucket(
-  t: { merchant: string; kind: TxnKind; category?: string },
+  t: { merchant: string; kind: TxnKind; category?: string; description?: string },
   items: BucketItem[],
   rules: MerchantRule[],
 ): string | null {
@@ -388,7 +401,13 @@ export function suggestBucket(
     return k.length >= 4 && (k === key || key.startsWith(k));
   });
   if (byName) return byName.id;
-  if (wantType === "income") return pool.length === 1 ? pool[0].id : null;
+  if (wantType === "income") {
+    // Only payroll-looking deposits are "regular pay"; anything else (a Marketplace sale,
+    // a friend paying you back) defaults to extra one-time income.
+    if (!looksLikePayroll(`${t.merchant} ${t.description ?? ""}`)) return null;
+    if (pool.length === 0) return NEW_PAYCHECK_BUCKET;
+    return pool.slice().sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))[0].id;
+  }
 
   const cat = t.category ?? getCategoryForExpense(t.merchant);
   const inCat = pool.filter((i) => categoryOf(i) === cat);
@@ -431,4 +450,86 @@ export function rollupTransactionActuals(txns: CashFlowTransaction[]): TxnActual
       .map(([label, amount]) => ({ label, amount: Math.round(amount * 100) / 100 }))
       .sort((a, b) => b.amount - a.amount),
   }));
+}
+
+// ── Month income: expected vs recorded ──────────────────────────────────────
+
+export type IncomeSource = { id: string; label: string; planMonthly: number };
+
+export type MonthIncome = {
+  total: number;          // what the month's math should use
+  expected: number;       // the plan (effectiveIncome)
+  regular: number;        // regular-pay portion of total
+  extras: number;         // one-time income (unassigned 'in' transactions)
+  extraCount: number;
+  recordedRegular: number; // sum of income assigned to sources this month
+  recordedCount: number;
+  status: "expected" | "in-progress" | "recorded";
+};
+
+// Income for one month, from the plan and whatever was actually recorded.
+//
+// - Income assigned to a source (paycheck → "Salary") REPLACES that source's expected
+//   amount for the month. Expected amounts are scaled by expectedTotal / Σ plans so they're
+//   on the same after-401(k) basis as real deposits.
+// - Unassigned income (a Marketplace sale) is EXTRA, added on top.
+// - Profile-only income (no sources with a plan): any income assigned to a source replaces
+//   the whole expected amount.
+// - The month in progress never drops BELOW expected because of pay that hasn't landed yet
+//   (one of two paychecks in shouldn't halve the month); past months use what was recorded.
+//   Future months are expected only.
+export function computeMonthIncome(p: {
+  year: number;
+  month: number;
+  today: Date;
+  sources: IncomeSource[];
+  expectedTotal: number;
+  transactions: CashFlowTransaction[];
+}): MonthIncome {
+  const period = p.year * 12 + (p.month - 1);
+  const nowPeriod = p.today.getFullYear() * 12 + p.today.getMonth();
+  const inMonth = p.transactions.filter((t) => t.direction === "in" && t.period_year === p.year && t.period_month === p.month);
+  const sourceIds = new Set(p.sources.map((s) => s.id));
+  const extrasList = inMonth.filter((t) => !t.cash_flow_item_id || !sourceIds.has(t.cash_flow_item_id));
+  const extras = extrasList.reduce((s, t) => s + t.amount, 0);
+  const recordedBy = new Map<string, number>();
+  for (const t of inMonth) {
+    if (t.cash_flow_item_id && sourceIds.has(t.cash_flow_item_id)) {
+      recordedBy.set(t.cash_flow_item_id, (recordedBy.get(t.cash_flow_item_id) ?? 0) + t.amount);
+    }
+  }
+  const recordedRegular = Array.from(recordedBy.values()).reduce((s, v) => s + v, 0);
+  const recordedCount = inMonth.length - extrasList.length;
+
+  const planSum = p.sources.reduce((s, x) => s + x.planMonthly, 0);
+  const ratio = planSum > 0 ? p.expectedTotal / planSum : 1;
+  const isPast = period < nowPeriod;
+  const isCurrent = period === nowPeriod;
+
+  let regular: number;
+  if (period > nowPeriod) {
+    regular = p.expectedTotal;
+  } else if (planSum > 0) {
+    regular = p.sources.reduce((s, src) => {
+      const expectedShare = src.planMonthly * ratio;
+      const rec = recordedBy.get(src.id);
+      if (rec === undefined) return s + expectedShare;
+      return s + (isCurrent ? Math.max(rec, expectedShare) : rec);
+    }, 0);
+  } else {
+    regular = recordedRegular > 0
+      ? (isCurrent ? Math.max(recordedRegular, p.expectedTotal) : recordedRegular)
+      : p.expectedTotal;
+  }
+
+  return {
+    total: regular + extras,
+    expected: p.expectedTotal,
+    regular,
+    extras,
+    extraCount: extrasList.length,
+    recordedRegular,
+    recordedCount,
+    status: recordedCount === 0 ? "expected" : isPast ? "recorded" : "in-progress",
+  };
 }

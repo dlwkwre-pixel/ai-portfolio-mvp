@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
-import { merchantKey, type TxnKind } from "@/lib/planning/transactions";
+import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -954,6 +954,11 @@ export async function syncForecastToActuals(cash_flow_item_id: string): Promise<
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
+  const { data: item } = await supabase
+    .from("cash_flow_items").select("type").eq("id", cash_flow_item_id).eq("user_id", user.id).maybeSingle();
+  if (!item) return { error: "Item not found." };
+  const isIncome = item.type === "income";
+
   const [{ data: logged }, { data: txns }] = await Promise.all([
     supabase
       .from("expense_actuals")
@@ -968,18 +973,24 @@ export async function syncForecastToActuals(cash_flow_item_id: string): Promise<
       .select("amount, period_year, period_month")
       .eq("user_id", user.id)
       .eq("cash_flow_item_id", cash_flow_item_id)
-      .eq("direction", "out"),
+      .eq("direction", isIncome ? "in" : "out"),
   ]);
 
   // Same rule as page.tsx: a month's transactions win over a legacy logged total.
   const byMonth = new Map<number, number>();
-  for (const r of logged ?? []) byMonth.set(r.period_year * 12 + r.period_month, Number(r.actual_amount));
+  if (!isIncome) for (const r of logged ?? []) byMonth.set(r.period_year * 12 + r.period_month, Number(r.actual_amount));
   const txnMonths = new Map<number, number>();
   for (const t of txns ?? []) {
     const k = t.period_year * 12 + t.period_month;
     txnMonths.set(k, (txnMonths.get(k) ?? 0) + Number(t.amount));
   }
   for (const [k, v] of txnMonths) byMonth.set(k, v);
+  // Income: a month still in progress has only some of its paychecks — leave it out so
+  // it doesn't drag the "expected" average down. (Keys here are year*12 + 1-based month.)
+  if (isIncome) {
+    const now = new Date();
+    byMonth.delete(now.getFullYear() * 12 + now.getMonth() + 1);
+  }
   const actuals = Array.from(byMonth.entries()).sort((a, b) => b[0] - a[0]).map(([, v]) => v);
 
   if (actuals.length < 3) return { error: "Need at least 3 months of actuals to sync." };
@@ -1181,7 +1192,7 @@ async function resolveBuckets(
   buckets: string[],
 ): Promise<Map<string, string | null>> {
   const out = new Map<string, string | null>();
-  const ids = buckets.filter((b) => !b.startsWith(NEW_BUCKET_PREFIX));
+  const ids = buckets.filter((b) => !b.startsWith(NEW_BUCKET_PREFIX) && b !== NEW_PAYCHECK_BUCKET);
   const newCats = Array.from(new Set(buckets.filter((b) => b.startsWith(NEW_BUCKET_PREFIX)).map((b) => b.slice(NEW_BUCKET_PREFIX.length))))
     .filter((c) => EXPENSE_CATEGORIES.some((e) => e.label === c));
 
@@ -1204,6 +1215,27 @@ async function resolveBuckets(
       });
     }
     out.set(NEW_BUCKET_PREFIX + cat, created?.id ?? null);
+  }
+
+  // A $0 variable income source for people whose income lives on their profile. $0 keeps
+  // effectiveIncome on the profile estimate (planning-client.tsx only switches to items when
+  // they sum > 0); recorded paychecks assigned here then replace that estimate per month.
+  if (buckets.includes(NEW_PAYCHECK_BUCKET)) {
+    const existing = (items ?? []).find((i) => i.type === "income" && i.label.toLowerCase() === "paycheck");
+    if (existing) {
+      out.set(NEW_PAYCHECK_BUCKET, existing.id);
+    } else {
+      const { data: created } = await supabase.from("cash_flow_items").insert({
+        user_id: userId, label: "Paycheck", type: "income", frequency: "monthly", amount: 0,
+        sort_order: ++sortOrder, is_variable: true,
+      }).select("id").single();
+      if (created) {
+        await supabase.from("cash_flow_budget_history").insert({
+          user_id: userId, item_id: created.id, amount: 0, frequency: "monthly", effective_year: 2000, effective_month: 1,
+        });
+      }
+      out.set(NEW_PAYCHECK_BUCKET, created?.id ?? null);
+    }
   }
   return out;
 }
@@ -1306,6 +1338,47 @@ export async function updateTransactionBucket(
   if (error) return { error: error.message };
   revalidatePath("/planning");
   return { moved: ids.length };
+}
+
+// One transaction typed in by hand — a Marketplace sale, a paycheck, a cash purchase.
+// Recorded for its own month only; the plan is untouched.
+export async function addManualTransaction(input: {
+  date: string;
+  merchant: string;
+  amount: number;
+  kind: Exclude<TxnKind, "transfer">;
+  bucket: string | null;
+  note?: string;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const date = String(input?.date ?? "");
+  const amount = Math.round(Number(input?.amount) * 100) / 100;
+  const merchant = String(input?.merchant ?? "").trim().slice(0, 60);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Pick a date." };
+  if (!merchant) return { error: "Add a description." };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter an amount greater than 0." };
+  if (!["spend", "refund", "income"].includes(input.kind)) return { error: "Invalid type." };
+
+  const itemId = input.bucket ? (await resolveBuckets(supabase, user.id, [input.bucket])).get(input.bucket) ?? null : null;
+  const { error } = await supabase.from("cash_flow_transactions").insert({
+    user_id: user.id,
+    txn_date: date,
+    period_year: Number(date.slice(0, 4)),
+    period_month: Number(date.slice(5, 7)),
+    description: merchant,
+    merchant,
+    amount: input.kind === "refund" ? -amount : amount,
+    direction: input.kind === "income" ? "in" : "out",
+    cash_flow_item_id: itemId,
+    source: "manual",
+    note: input.note ? String(input.note).slice(0, 200) : null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
 }
 
 export async function deleteTransaction(id: string): Promise<{ error?: string }> {

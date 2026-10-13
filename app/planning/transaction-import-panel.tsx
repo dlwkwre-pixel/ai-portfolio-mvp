@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import type { CashFlowItem } from "./planning-actions";
 import { saveImportedTransactions } from "./planning-actions";
 import type { ReviewTxn, ParseTransactionsResponse } from "@/app/api/planning/transactions/parse/route";
-import { merchantKey, type TxnKind } from "@/lib/planning/transactions";
+import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { Button, Chip } from "@/app/components/ui-primitives";
 import { MONTH_NAMES } from "./planning-shared";
@@ -184,7 +184,7 @@ export default function TransactionImportPanel({
       included,
       dupes: rows.filter((r) => r.duplicateOf).length,
       transfers: rows.filter((r) => r.kind === "transfer").length,
-      needs: included.filter((r) => !r.bucket).length,
+      needs: included.filter((r) => !r.bucket && r.kind !== "income").length,
       spent: included.filter((r) => r.kind !== "income").reduce((s, r) => s + (r.kind === "refund" ? -r.amount : r.amount), 0),
       income: included.filter((r) => r.kind === "income").reduce((s, r) => s + r.amount, 0),
       first: rows[0]?.date, last: rows[rows.length - 1]?.date,
@@ -193,7 +193,7 @@ export default function TransactionImportPanel({
   }, [rows]);
 
   const visible = rows?.filter((r) =>
-    filter === "needs" ? r.include && r.kind !== "transfer" && !r.bucket
+    filter === "needs" ? r.include && r.kind !== "transfer" && r.kind !== "income" && !r.bucket
     : filter === "dupes" ? !!r.duplicateOf
     : filter === "skipped" ? !r.include || r.kind === "transfer"
     : true) ?? [];
@@ -317,12 +317,15 @@ export default function TransactionImportPanel({
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Not spending or income</span>
                       ) : (
                         <select value={r.bucket ?? ""} onChange={(e) => setBucket(r, e.target.value || null)} aria-label="Budget bucket"
-                          style={{ ...fieldStyle, borderColor: !r.bucket && saving_ ? "var(--amber)" : "var(--border-subtle)", color: r.bucket ? "var(--text-primary)" : "var(--amber)" }}>
-                          <option value="">{r.kind === "income" ? "Income (no specific source)" : "Needs a bucket"}</option>
+                          style={{ ...fieldStyle, borderColor: !r.bucket && saving_ && r.kind !== "income" ? "var(--amber)" : "var(--border-subtle)", color: r.bucket || r.kind === "income" ? "var(--text-primary)" : "var(--amber)" }}>
+                          <option value="">{r.kind === "income" ? "Extra, one-time" : "Needs a bucket"}</option>
                           {bucketPool.length > 0 && (
-                            <optgroup label={r.kind === "income" ? "Your income" : "Your budget"}>
-                              {bucketPool.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
+                            <optgroup label={r.kind === "income" ? "Regular pay (replaces expected)" : "Your budget"}>
+                              {bucketPool.map((i) => <option key={i.id} value={i.id}>{r.kind === "income" ? `Pay from ${i.label}` : i.label}</option>)}
                             </optgroup>
+                          )}
+                          {r.kind === "income" && bucketPool.length === 0 && (
+                            <option value={NEW_PAYCHECK_BUCKET}>Regular paycheck (replaces estimate)</option>
                           )}
                           {r.kind !== "income" && missingCategories.length > 0 && (
                             <optgroup label="Create new budget line">
@@ -338,6 +341,11 @@ export default function TransactionImportPanel({
             })}
           </div>
 
+          {stats.income > 0 && (
+            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+              Income set to <strong>Pay from…</strong> replaces your expected income for that month. Income left as <strong>Extra, one-time</strong> is added on top, so make sure paychecks aren&apos;t left as extra.
+            </p>
+          )}
           {stats.needs > 0 && (
             <p style={{ fontSize: "var(--text-xs)", color: "var(--amber)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
               {stats.needs} transaction{stats.needs !== 1 ? "s" : ""} without a bucket will be saved as unsorted. Unsorted spending isn&apos;t counted in your budget until you sort it.
