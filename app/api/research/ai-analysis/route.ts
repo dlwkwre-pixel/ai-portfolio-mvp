@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
 import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
+import { gatherNewsResearch, type ResearchSource } from "@/lib/research/news-research";
+
+export const maxDuration = 60;
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
@@ -14,14 +17,16 @@ function buildPrompt(
   price: number,
   changePct: number,
   insiderSummary?: string,
+  newsContext?: string,
 ): string {
   const insiderLine = insiderSummary
     ? `\nInsider activity (last 90 days, open-market only): ${insiderSummary}`
     : "";
+  const newsBlock = newsContext
+    ? `\n\n${newsContext}\n\nGround your analysis in the recent news above: cite specific facts from it (numbers, guidance, deals, dates) in the bull/bear cases, catalysts and risks. Where the news is silent, fall back on what you know about the company and say less rather than guess.`
+    : `\n\nNo recent news was available. Use what you know about this company's fundamentals, competitive position and macro context, and keep claims general rather than inventing recent events.`;
   return `Analyze ${ticker} (${company}).
-Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}
-
-Use your training data and web knowledge about this company's fundamentals, recent earnings, competitive position, and macro context.
+Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}${newsBlock}
 
 Return this exact JSON shape:
 {
@@ -94,14 +99,25 @@ export async function POST(req: NextRequest) {
       // Non-fatal
     }
 
+    // Recent headlines + full text of a few articles and the latest press release, so the
+    // free model works from this week's facts instead of training data alone.
+    let newsContext = "";
+    let sources: ResearchSource[] = [];
+    try {
+      ({ context: newsContext, sources } = await gatherNewsResearch(t));
+    } catch {
+      // Non-fatal — analysis still runs without news
+    }
+
     // Research uses Groq only (Gemini free keys are maxed). No Grok tokens.
-    const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary)}`;
+    const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary, newsContext)}`;
     const raw = await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 1100, groqOnly: true });
     if (!raw) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
-    const analysis = extractJsonObject<Record<string, unknown>>(raw);
+    const parsedAnalysis = extractJsonObject<Record<string, unknown>>(raw);
+    const analysis = parsedAnalysis ? { ...parsedAnalysis, sources } : null;
     if (!analysis) {
       console.error("[ai-analysis] unparseable AI response:", raw.slice(0, 200));
       return NextResponse.json({ error: "AI returned an unexpected response. Please try again." }, { status: 502 });

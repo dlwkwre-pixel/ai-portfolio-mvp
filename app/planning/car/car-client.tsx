@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import ListingLinkFill, { type ListingFields } from "../listing-link-fill";
 import Link from "next/link";
 import type { CarScenario } from "./car-actions";
 import { saveCarScenario, deleteCarScenario } from "./car-actions";
@@ -456,6 +457,23 @@ export default function CarClient({
     } catch { /* silent */ }
   }
 
+  // Fill the NEW vehicle from a pasted listing link, then chain the EPA MPG lookup when
+  // the listing itself didn't give an MPG.
+  function fillNewFromListing(f: ListingFields) {
+    const n = (k: string) => (typeof f[k] === "number" ? (f[k] as number) : null);
+    const t = (k: string) => (typeof f[k] === "string" ? (f[k] as string) : null);
+    const year = n("year"), make = t("make"), model = t("model");
+    if (year) setField("new_year", year);
+    if (make) setField("new_make", make);
+    if (model) setField("new_model", model);
+    if (n("price")) setField("new_car_price", n("price")!);
+    if (n("mpg_combined")) setField("new_mpg", n("mpg_combined")!);
+    const details = [t("trim"), n("mileage") != null ? `${Math.round(n("mileage")!).toLocaleString()} miles` : null, t("vin") ? `VIN ${t("vin")}` : null]
+      .filter(Boolean).join(" · ");
+    if (details) setField("notes", [form.notes, `Listing: ${details}`].filter(Boolean).join("\n"));
+    if (!n("mpg_combined") && year && make && model) lookupMpgDirect("new", year, make, model);
+  }
+
   async function lookupVin(target: "current" | "new") {
     if (vinInput.length !== 17) { setVinError("VIN must be 17 characters"); return; }
     setVinLoading(target);
@@ -708,6 +726,8 @@ export default function CarClient({
 
               {/* New vehicle — hidden in track mode */}
               {!isTrack && <><p style={sectionLabel}>New Vehicle</p>
+
+              <ListingLinkFill kind="car" onFill={fillNewFromListing} accent={CAR_COLOR} />
 
               {/* VIN lookup for new */}
               <div>

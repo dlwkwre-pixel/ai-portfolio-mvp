@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createStrategy } from "./actions";
 import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 import { saveFinnProfile } from "./finn-profile-actions";
+import ArticleStart from "./article-start";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1082,10 +1083,11 @@ export default function StrategyQuestionnaire({
     }
   }
 
-  async function sendMessage() {
-    if (!input.trim() || isLoading || isGenerating) return;
-    const userMessage       = input.trim();
-    setInput("");
+  // `override` sends a composed message (e.g. an article summary) instead of the input box.
+  async function sendMessage(override?: string) {
+    const userMessage = (override ?? input).trim();
+    if (!userMessage || isLoading || isGenerating) return;
+    if (override === undefined) setInput("");
     const updatedMessages: Message[] = [...messages, { role: "user", content: userMessage }];
     setMessages(updatedMessages);
 
@@ -1573,7 +1575,7 @@ export default function StrategyQuestionnaire({
             />
             <button
               type="button"
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={isBusy || !input.trim()}
               className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
               style={{ background: `linear-gradient(135deg,${FV.accentDim},${FV.accent})` }}
@@ -1583,6 +1585,7 @@ export default function StrategyQuestionnaire({
               </svg>
             </button>
           </div>
+          <ArticleStart disabled={isBusy} onUse={(msg) => sendMessage(msg)} />
           <p className="mt-2 text-[10px] text-slate-600">Press Enter to send · Powered by Atlas</p>
         </div>
       )}

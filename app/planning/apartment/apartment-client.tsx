@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import ListingLinkFill, { type ListingFields } from "../listing-link-fill";
 import Link from "next/link";
 import type { ApartmentListing, ListingStatus } from "./apartment-actions";
 import { saveApartmentListing, deleteApartmentListing, toggleApartmentFavorite } from "./apartment-actions";
@@ -212,6 +213,33 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
+  // Fill from a pasted listing link — only fields the page actually had; everything else
+  // the user already typed stays as it is.
+  function fillFromListing(f: ListingFields, url: string) {
+    const n = (k: string) => (typeof f[k] === "number" ? (f[k] as number) : null);
+    const t = (k: string) => (typeof f[k] === "string" ? (f[k] as string) : null);
+    setDraft((d) => ({
+      ...d,
+      website: url,
+      name: t("name") ?? d.name,
+      address: t("address") ?? d.address,
+      floorplan_name: t("floorplan_name") ?? d.floorplan_name,
+      bedrooms: n("bedrooms") ?? d.bedrooms,
+      bathrooms: n("bathrooms") ?? d.bathrooms,
+      square_feet: n("square_feet") ?? d.square_feet,
+      base_rent: n("base_rent") ?? d.base_rent,
+      available_date: t("available_date") ?? d.available_date,
+      lease_term_months: n("lease_term_months") ?? d.lease_term_months,
+      application_fee: n("application_fee") ?? d.application_fee,
+      admin_fee: n("admin_fee") ?? d.admin_fee,
+      security_deposit: n("security_deposit") ?? d.security_deposit,
+      pet_deposit: n("pet_deposit") ?? d.pet_deposit,
+      pet_rent_monthly: n("pet_rent_monthly") ?? d.pet_rent_monthly,
+      parking_monthly: n("parking_monthly") ?? d.parking_monthly,
+      concession_text: t("concession_text") ?? d.concession_text,
+    }));
+  }
+
   async function parseConcesssion() {
     if (!draft.concession_text?.trim() || draft.base_rent <= 0) return;
     setIsParsing(true);
@@ -353,6 +381,8 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
             <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}
               style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>
+
+          <ListingLinkFill kind="apartment" onFill={fillFromListing} />
 
           {/* Section: Property Info */}
           <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Property</p>

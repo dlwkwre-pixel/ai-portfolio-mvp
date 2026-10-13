@@ -94,6 +94,8 @@ type AiAnalysis = {
   key_risks: string;
   takeaway: string;
   cached_at: string;
+  // Recent news the free model was given (headlines; `full` = article text read via Firecrawl)
+  sources?: { title: string; source: string; url: string; date: string; full: boolean; pressRelease: boolean }[];
 };
 
 type MyPosition = {
@@ -1493,11 +1495,35 @@ function DetailView({
                   </div>
                   {isGrok ? (
                     <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Powered by Grok with live web + X search.</div>
-                  ) : (
-                    <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-                      Quick offline-model take — not live and not personalized to your strategy. Tap <strong style={{ color: "oklch(0.68 0.20 295)" }}>Live Grok deep-dive</strong> above for a current, web-searched call.
-                    </div>
-                  )}
+                  ) : (() => {
+                    const sources = (shown as AiAnalysis).sources ?? [];
+                    const readCount = sources.filter((s) => s.full).length;
+                    return (
+                      <>
+                        {sources.length > 0 && (
+                          <details style={{ marginTop: "10px" }}>
+                            <summary style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+                              {`Based on ${sources.length} recent headline${sources.length !== 1 ? "s" : ""}${readCount > 0 ? `, ${readCount} read in full` : ""}`}
+                            </summary>
+                            <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                              {sources.map((s) => (
+                                <li key={s.url} style={{ fontSize: "10px", lineHeight: 1.45, fontFamily: "var(--font-body)", color: "var(--text-tertiary)" }}>
+                                  <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-secondary)" }}>{s.title}</a>
+                                  {` · ${s.source} · ${s.date}${s.pressRelease ? " · press release" : ""}${s.full ? " · read in full" : ""}`}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                        <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                          {sources.length > 0
+                            ? "Free model working from this week's news, not live search and not personalized to your strategy. "
+                            : "Quick offline-model take, not live and not personalized to your strategy. "}
+                          Tap <strong style={{ color: "oklch(0.68 0.20 295)" }}>Live Grok deep-dive</strong> above for a fully web-searched call.
+                        </div>
+                      </>
+                    );
+                  })()}
                   {shown && !grokLoading && <AdviceDisclaimer context="analysis" />}
                 </div>
               )}
