@@ -7,7 +7,6 @@ import PageIntro from "@/app/components/page-intro";
 import PageTutorial from "@/app/components/page-tutorial";
 import LifePlanTab from "./life-plan-tab";
 import TrajectoryChart from "./trajectory-chart";
-import BankSpendingCard from "./bank-spending-card";
 import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
@@ -6191,8 +6190,6 @@ export default function PlanningClient({
             emergencyFundExpenseBasis={effectiveExpenses}
             k401EmployeeMonthly={k401EmployeeMonthly}
           />
-          {/* Live bank spending (Plaid Phase 3) — renders nothing without linked banks. */}
-          <BankSpendingCard isPrivate={isPrivate} />
         </div>
       )}
 

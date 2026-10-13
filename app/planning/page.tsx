@@ -20,6 +20,19 @@ import type { SabbaticalScenario } from "./sabbatical/sabbatical-actions";
 import type { CarScenario } from "./car/car-actions";
 import type { ApartmentListing } from "./apartment/apartment-actions";
 
+// Cash Flow transactions, ~18 months. Asks for reviewed_at, and retries without it if the
+// column hasn't been added yet (supabase/cash-flow-transactions-reviewed.sql) so a pending
+// migration never blanks the page.
+async function loadTransactions(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const cols = "id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note";
+  const query = (select: string) => supabase.from("cash_flow_transactions")
+    .select(select).eq("user_id", userId).gte("txn_date", transactionWindowStart())
+    .order("txn_date", { ascending: false }).limit(8000);
+  const first = await query(`${cols}, reviewed_at`);
+  if (!first.error) return first;
+  return query(cols);
+}
+
 // ~18 months back — enough history for the Cash Flow Average view and month-by-month review.
 function transactionWindowStart(): string {
   const d = new Date();
@@ -74,12 +87,7 @@ export default async function PlanningPage({
     supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
     supabase.from("estate_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("cash_flow_budget_history").select("*").eq("user_id", user.id).order("effective_year").order("effective_month"),
-    supabase.from("cash_flow_transactions")
-      .select("id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note")
-      .eq("user_id", user.id)
-      .gte("txn_date", transactionWindowStart())
-      .order("txn_date", { ascending: false })
-      .limit(8000),
+    loadTransactions(supabase, user.id),
     // Missing table (migration not run yet) just yields null → no closed months.
     supabase.from("cash_flow_month_closes")
       .select("period_year, period_month, income, spending, saved, closed_at")
@@ -354,9 +362,11 @@ export default async function PlanningPage({
     closed_at: r.closed_at,
   }));
 
-  const typedTransactions: CashFlowTransaction[] = (transactionsData ?? []).map((r) => ({
+  const typedTransactions: CashFlowTransaction[] = ((transactionsData ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
     ...r,
     amount: Number(r.amount),
+    // undefined (column missing) → treat as reviewed, so nothing floods "To review"
+    reviewed_at: r.reviewed_at === undefined ? "legacy" : (r.reviewed_at as string | null),
   }) as CashFlowTransaction);
 
   const loggedExpenseActuals: ExpenseActual[] = (expenseActualsData ?? []).map((r) => ({

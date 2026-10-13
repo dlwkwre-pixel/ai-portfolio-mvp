@@ -34,7 +34,17 @@ export type CashFlowTransaction = {
   source: "statement" | "manual" | "plaid";
   import_batch_id: string | null;
   note: string | null;
+  // Bank-synced rows start unreviewed (null) and show under "To review" until marked.
+  // Absent before supabase/cash-flow-transactions-reviewed.sql runs — treated as reviewed.
+  reviewed_at?: string | null;
 };
+
+// What shows in "To review": new bank transactions not yet marked, and anything that
+// still needs a bucket (it isn't counted until it has one).
+export function needsReview(t: CashFlowTransaction): boolean {
+  if (t.direction === "out" && !t.cash_flow_item_id) return true;
+  return t.source === "plaid" && t.reviewed_at === null;
+}
 
 export type MerchantRule = { merchant_key: string; cash_flow_item_id: string };
 

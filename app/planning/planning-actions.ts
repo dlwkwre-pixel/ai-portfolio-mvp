@@ -1409,6 +1409,10 @@ export async function updateTransactionBucket(
     .update({ cash_flow_item_id: itemId, updated_at: new Date().toISOString() })
     .in("id", ids).eq("user_id", user.id);
   if (error) return { error: error.message };
+  // Choosing a bucket is reviewing it. Separate, best-effort: works before the
+  // reviewed_at column exists too.
+  await supabase.from("cash_flow_transactions").update({ reviewed_at: new Date().toISOString() })
+    .in("id", ids).eq("user_id", user.id).then((r) => r, () => ({}));
   revalidatePath("/planning");
   return { moved: ids.length };
 }
@@ -1572,6 +1576,25 @@ export async function reopenCashFlowMonth(year: number, month: number): Promise<
   const { error } = await supabase.from("cash_flow_month_closes").delete()
     .eq("user_id", user.id).eq("period_year", year).eq("period_month", month);
   if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// "Looks right" for bank-synced transactions: moves them out of "To review".
+export async function markTransactionsReviewed(ids: string[]): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const list = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === "string").slice(0, 1000);
+  if (list.length === 0) return {};
+  const { error } = await supabase.from("cash_flow_transactions")
+    .update({ reviewed_at: new Date().toISOString() })
+    .in("id", list).eq("user_id", user.id);
+  if (error) {
+    return { error: /reviewed_at/.test(error.message)
+      ? "Reviewing needs a quick database update first (supabase/cash-flow-transactions-reviewed.sql)."
+      : error.message };
+  }
   revalidatePath("/planning");
   return {};
 }
