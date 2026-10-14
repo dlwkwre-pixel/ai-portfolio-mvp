@@ -96,6 +96,8 @@ type AiAnalysis = {
   cached_at: string;
   // Recent news the free model was given (headlines; `full` = article text read via Firecrawl)
   sources?: { title: string; source: string; url: string; date: string; full: boolean; pressRelease: boolean }[];
+  // Cached Kronos forecast the model was shown, if one existed (weak technical input)
+  model_forecast?: { days: number; endClose: number; pct: number; low: number | null; high: number | null } | null;
 };
 
 type MyPosition = {
@@ -1515,6 +1517,16 @@ function DetailView({
                             </ul>
                           </details>
                         )}
+                        {(shown as AiAnalysis).model_forecast && (() => {
+                          const f = (shown as AiAnalysis).model_forecast!;
+                          return (
+                            <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                              {"Also saw the Kronos forecast: "}
+                              <span style={{ fontFamily: "var(--font-mono)", color: f.pct >= 0 ? "var(--green)" : "var(--red)" }}>{`${f.pct >= 0 ? "+" : ""}${f.pct.toFixed(1)}%`}</span>
+                              {` over ${f.days} trading days, used only as a weak price-pattern signal.`}
+                            </div>
+                          );
+                        })()}
                         <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
                           {sources.length > 0
                             ? "Free model working from this week's news, not live search and not personalized to your strategy. "

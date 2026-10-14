@@ -4,10 +4,30 @@ import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
 import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
 import { gatherNewsResearch, type ResearchSource } from "@/lib/research/news-research";
+import type { KronosForecastPoint } from "@/lib/market-data/kronos";
 
 export const maxDuration = 60;
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const KRONOS_MAX_AGE_MS = 36 * 60 * 60 * 1000; // a forecast older than ~1.5 days is stale
+
+// Kronos's short-term price-path forecast, summarized for the prompt. Only the shared cache
+// is read (filled when someone opens a ticker's forecast card): calling the model here would
+// add its Render cold start to every analysis.
+type ModelForecast = { days: number; endClose: number; pct: number; low: number | null; high: number | null; generatedAt: string };
+
+function summarizeKronos(points: KronosForecastPoint[], price: number, generatedAt: string): ModelForecast | null {
+  const last = points[points.length - 1];
+  if (!last || !(price > 0) || !(last.close > 0)) return null;
+  return {
+    days: points.length,
+    endClose: last.close,
+    pct: ((last.close - price) / price) * 100,
+    low: typeof last.close_low === "number" ? last.close_low : null,
+    high: typeof last.close_high === "number" ? last.close_high : null,
+    generatedAt,
+  };
+}
 
 const SYSTEM_PROMPT = `You are a concise institutional equity analyst with deep fundamental and technical expertise. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
 
@@ -18,6 +38,7 @@ function buildPrompt(
   changePct: number,
   insiderSummary?: string,
   newsContext?: string,
+  forecast?: ModelForecast | null,
 ): string {
   const insiderLine = insiderSummary
     ? `\nInsider activity (last 90 days, open-market only): ${insiderSummary}`
@@ -25,8 +46,11 @@ function buildPrompt(
   const newsBlock = newsContext
     ? `\n\n${newsContext}\n\nGround your analysis in the recent news above: cite specific facts from it (numbers, guidance, deals, dates) in the bull/bear cases, catalysts and risks. Where the news is silent, fall back on what you know about the company and say less rather than guess.`
     : `\n\nNo recent news was available. Use what you know about this company's fundamentals, competitive position and macro context, and keep claims general rather than inventing recent events.`;
+  const forecastBlock = forecast
+    ? `\n\nShort-term model forecast (Kronos, a time-series model trained only on price/volume patterns, so it knows nothing about fundamentals or news): over the next ${forecast.days} trading days its typical path ends near $${forecast.endClose.toFixed(2)} (${forecast.pct >= 0 ? "+" : ""}${forecast.pct.toFixed(1)}% from now)${forecast.low !== null && forecast.high !== null ? `, with separate runs ending between $${forecast.low.toFixed(2)} and $${forecast.high.toFixed(2)}` : ""}. Treat this as a weak technical input. Mention it in key_catalysts or key_risks only if it clearly agrees or conflicts with the news and fundamentals, and never let it drive the 12-month verdict or price target.`
+    : "";
   return `Analyze ${ticker} (${company}).
-Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}${newsBlock}
+Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}${newsBlock}${forecastBlock}
 
 Return this exact JSON shape:
 {
@@ -83,10 +107,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Enrich with insider data
+    // Insider activity, recent news and any cached Kronos forecast are independent — fetch
+    // them together.
+    const [insider, news, kronosRow] = await Promise.all([
+      getFinnhubInsiderTransactions(t).catch(() => null),
+      // Recent headlines + full text of a few articles and the latest press release, so the
+      // free model works from this week's facts instead of training data alone.
+      gatherNewsResearch(t).catch(() => null),
+      supabase.from("kronos_forecasts").select("forecast, generated_at").eq("ticker", t).maybeSingle()
+        .then((r) => r.data as { forecast: KronosForecastPoint[]; generated_at: string } | null, () => null),
+    ]);
+
     let insiderSummary: string | undefined;
     try {
-      const insider = await getFinnhubInsiderTransactions(t);
       if (insider && insider.transactions.length > 0) {
         const buys = insider.transactions.filter((tx) => tx.transactionCode === "P");
         const sells = insider.transactions.filter((tx) => tx.transactionCode === "S");
@@ -99,25 +132,22 @@ export async function POST(req: NextRequest) {
       // Non-fatal
     }
 
-    // Recent headlines + full text of a few articles and the latest press release, so the
-    // free model works from this week's facts instead of training data alone.
-    let newsContext = "";
-    let sources: ResearchSource[] = [];
-    try {
-      ({ context: newsContext, sources } = await gatherNewsResearch(t));
-    } catch {
-      // Non-fatal — analysis still runs without news
-    }
+    const newsContext = news?.context ?? "";
+    const sources: ResearchSource[] = news?.sources ?? [];
+
+    const modelForecast = kronosRow && Array.isArray(kronosRow.forecast) && Date.now() - Date.parse(kronosRow.generated_at) < KRONOS_MAX_AGE_MS
+      ? summarizeKronos(kronosRow.forecast, price ?? 0, kronosRow.generated_at)
+      : null;
 
     // Research uses Groq only (Gemini free keys are maxed). No Grok tokens.
-    const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary, newsContext)}`;
+    const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary, newsContext, modelForecast)}`;
     const raw = await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 1100, groqOnly: true });
     if (!raw) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
     const parsedAnalysis = extractJsonObject<Record<string, unknown>>(raw);
-    const analysis = parsedAnalysis ? { ...parsedAnalysis, sources } : null;
+    const analysis = parsedAnalysis ? { ...parsedAnalysis, sources, model_forecast: modelForecast } : null;
     if (!analysis) {
       console.error("[ai-analysis] unparseable AI response:", raw.slice(0, 200));
       return NextResponse.json({ error: "AI returned an unexpected response. Please try again." }, { status: 502 });
