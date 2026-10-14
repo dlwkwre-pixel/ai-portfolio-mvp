@@ -11,6 +11,7 @@ import CacheWarmer from "@/app/components/cache-warmer";
 import BehavioralGuardrail from "@/app/components/behavioral-guardrail";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import ErrorReporter from "@/app/components/error-reporter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -93,6 +94,7 @@ export default function RootLayout({
         <a href="#bt-content" className="bt-skip-link">Skip to main content</a>
         <ThemeProvider>
           <PWARegister />
+          <ErrorReporter />
           <div id="bt-content" style={{ display: "contents" }}>{children}</div>
           <MobileBottomNav />
           <IosInstallGuide />

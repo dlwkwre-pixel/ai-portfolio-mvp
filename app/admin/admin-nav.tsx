@@ -25,6 +25,9 @@ const ICONS: Record<string, React.ReactNode> = {
   metrics: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M12 9a1 1 0 01-1-1V3c0-.553.45-1.008.997-.93a7.004 7.004 0 015.933 5.933c.078.547-.378.997-.93.997h-5z" /><path d="M8.003 4.07C8.55 3.992 9 4.447 9 5v5a1 1 0 001 1h5c.552 0 1.008.45.93.997A7.001 7.001 0 012.055 9.997a7.002 7.002 0 015.948-5.927z" /></svg>
   ),
+  errors: (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+  ),
   access: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
   ),
@@ -33,6 +36,7 @@ const ICONS: Record<string, React.ReactNode> = {
 const TABS = [
   { href: "/admin", label: "Overview", icon: "overview", exact: true },
   { href: "/admin/metrics", label: "Metrics", icon: "metrics" },
+  { href: "/admin/errors", label: "Errors", icon: "errors" },
   { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
   { href: "/admin/agreements", label: "Agreements", icon: "agreements" },
   { href: "/admin/notify", label: "Notifications", icon: "notifications" },

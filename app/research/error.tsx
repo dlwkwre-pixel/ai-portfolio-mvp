@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { reportClientError } from "@/app/components/error-reporter";
 
 export default function ResearchError({
   error,
@@ -13,6 +14,8 @@ export default function ResearchError({
   useEffect(() => {
     // Surface the error in the browser console for debugging
     console.error("[research] render error:", error, "digest:", error?.digest);
+    // server-side crashes (with a digest) are already recorded by instrumentation.ts
+    if (!error?.digest) reportClientError(error, "error-boundary");
   }, [error]);
 
   return (
