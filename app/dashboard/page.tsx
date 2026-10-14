@@ -66,27 +66,39 @@ export default async function DashboardPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  // Use select("*") so that unrun migrations (missing columns) never crash the query.
-  // PostgREST errors on unknown column names; selecting all avoids that entirely.
-  const { data: rawProfile } = await supabase
-    .from("user_profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Independent reads go out together — awaited one by one they cost a database round trip
+  // each before anything could render.
+  const [
+    // select("*") so that unrun migrations (missing columns) never crash the query.
+    // PostgREST errors on unknown column names; selecting all avoids that entirely.
+    { data: rawProfile },
+    surveyResult,
+    { data: portfolios },
+    { count: strategiesCount },
+    { data: userStrategies },
+  ] = await Promise.all([
+    supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle(),
+    supabase.from("pricing_survey_responses").select("user_id").eq("user_id", user.id).maybeSingle()
+      .then((r) => r, () => null),
+    supabase
+      .from("portfolios")
+      .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, display_order")
+      .eq("user_id", user.id)
+      .order("display_order", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("strategies").select("*", { count: "exact", head: true })
+      .eq("user_id", user.id).eq("is_active", true),
+    supabase.from("strategies")
+      .select("id, name, description, style, risk_level")
+      .eq("user_id", user.id).eq("is_active", true)
+      .order("created_at", { ascending: false }),
+  ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const profileData = rawProfile as Record<string, any> | null;
 
   // Willingness-to-pay pulse: show until answered. Graceful if the table isn't
   // migrated yet (query error → treat as answered so the card stays hidden).
-  let surveyResponded = true;
-  try {
-    const { data: surveyRow, error: surveyErr } = await supabase
-      .from("pricing_survey_responses")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    surveyResponded = !!surveyRow || !!surveyErr;
-  } catch { /* keep hidden */ }
+  const surveyResponded = !surveyResult || !!surveyResult.data || !!surveyResult.error;
 
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
@@ -102,22 +114,6 @@ export default async function DashboardPage({
   const streakStale = lastActive !== today && lastActive !== yesterday;
   const initialStreak = streakStale ? 0 : (pd?.login_streak ?? 0);
 
-  const { data: portfolios } = await supabase
-    .from("portfolios")
-    .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, display_order")
-    .eq("user_id", user.id)
-    .order("display_order", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
-
-  const [{ count: strategiesCount }, { data: userStrategies }] = await Promise.all([
-    supabase.from("strategies").select("*", { count: "exact", head: true })
-      .eq("user_id", user.id).eq("is_active", true),
-    supabase.from("strategies")
-      .select("id, name, description, style, risk_level")
-      .eq("user_id", user.id).eq("is_active", true)
-      .order("created_at", { ascending: false }),
-  ]);
-
   const activePortfolios = (portfolios ?? []).filter((p) => p.is_active);
   const archivedPortfolios = (portfolios ?? []).filter((p) => !p.is_active);
   const portfolioIds = activePortfolios.map((p) => p.id);
@@ -129,6 +125,19 @@ export default async function DashboardPage({
   const portfolioCash: Record<string, number> = {};
   // Combined holdings across all active portfolios — powers the account-wide stress test.
   const combinedHoldings = new Map<string, { ticker: string; company_name: string | null; market_value: number }>();
+
+  // Recent activity only needs the portfolio ids, so it loads while portfolios are valued.
+  const recentActivity = portfolioIds.length > 0
+    ? Promise.all([
+        supabase.from("recommendation_runs").select("id, portfolio_id, status, summary, created_at")
+          .in("portfolio_id", portfolioIds).order("created_at", { ascending: false }).limit(5),
+        supabase.from("portfolio_transactions").select("id, portfolio_id, transaction_type, ticker, net_cash_impact, traded_at")
+          .in("portfolio_id", portfolioIds).order("traded_at", { ascending: false }).limit(8),
+        supabase.from("recommendation_items").select("id, portfolio_id, action_type, ticker, thesis, recommendation_status")
+          .in("portfolio_id", portfolioIds).eq("recommendation_status", "proposed")
+          .order("created_at", { ascending: false }).limit(15),
+      ])
+    : null;
 
   // One holdings query for all portfolios (was N separate round-trips), grouped in memory.
   // .in() with an empty array returns [] cleanly when the user has no active portfolios.
@@ -193,16 +202,8 @@ export default async function DashboardPage({
   let recentTransactions: any[] = [];
   let latestRecommendations: any[] = [];
 
-  if (portfolioIds.length > 0) {
-    const [{ data: runs }, { data: transactions }, { data: recs }] = await Promise.all([
-      supabase.from("recommendation_runs").select("id, portfolio_id, status, summary, created_at")
-        .in("portfolio_id", portfolioIds).order("created_at", { ascending: false }).limit(5),
-      supabase.from("portfolio_transactions").select("id, portfolio_id, transaction_type, ticker, net_cash_impact, traded_at")
-        .in("portfolio_id", portfolioIds).order("traded_at", { ascending: false }).limit(8),
-      supabase.from("recommendation_items").select("id, portfolio_id, action_type, ticker, thesis, recommendation_status")
-        .in("portfolio_id", portfolioIds).eq("recommendation_status", "proposed")
-        .order("created_at", { ascending: false }).limit(15),
-    ]);
+  if (recentActivity) {
+    const [{ data: runs }, { data: transactions }, { data: recs }] = await recentActivity;
     recentRuns = runs ?? [];
     recentTransactions = transactions ?? [];
     latestRecommendations = recs ?? [];
