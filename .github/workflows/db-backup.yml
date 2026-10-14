@@ -5,8 +5,9 @@ name: Supabase DB backup
 # tier or PITR required). If Supabase is ever lost, restore from the most recent artifact.
 #
 # ONE-TIME SETUP (required): add a repo secret named SUPABASE_DB_URL.
-#   Supabase dashboard → Project Settings → Database → Connection string → URI
-#   (use the "Session pooler" / direct connection URI, include the password).
+#   Supabase dashboard → Connect → "Session pooler" URI (include the password).
+#   NOT the direct connection (db.<ref>.supabase.co): it's IPv6-only and GitHub
+#   runners can't reach it.
 #   GitHub repo → Settings → Secrets and variables → Actions → New repository secret.
 #
 # RESTORE: download the artifact, then:
@@ -35,10 +36,25 @@ jobs:
             exit 1
           fi
 
+      - name: Check connection host
+        env:
+          PGCONN: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # GitHub runners have no IPv6, and Supabase's direct host (db.<ref>.supabase.co) is
+          # IPv6-only — that silently produced empty backups from July to October 2026.
+          # The Session pooler host (*.pooler.supabase.com) works over IPv4.
+          if echo "$PGCONN" | grep -qE '@db\.[a-z0-9]+\.supabase\.co'; then
+            echo "::error::SUPABASE_DB_URL uses the direct host (db.<ref>.supabase.co), which GitHub runners can't reach. Replace it with the Session pooler URI: Supabase → Connect → Session pooler."
+            exit 1
+          fi
+
       - name: Dump database (gzip)
         env:
           PGCONN: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          # pipefail: a failed pg_dump must fail the step, not hand gzip an empty stream
+          # (that is how 90 days of empty "successful" backups happened).
+          set -o pipefail
           STAMP="$(date -u +%F)"
           # Use a recent pg_dump (backward-compatible with older servers). Pass the
           # connection string via env so it never appears in the command/log.
@@ -46,6 +62,11 @@ jobs:
             sh -c 'pg_dump "$PGCONN" --no-owner --no-privileges --clean --if-exists' \
             | gzip > "backup-${STAMP}.sql.gz"
           ls -lh "backup-${STAMP}.sql.gz"
+          SIZE=$(stat -c %s "backup-${STAMP}.sql.gz")
+          if [ "$SIZE" -lt 10000 ]; then
+            echo "::error::Backup is only ${SIZE} bytes, so the dump is empty. Check SUPABASE_DB_URL."
+            exit 1
+          fi
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
