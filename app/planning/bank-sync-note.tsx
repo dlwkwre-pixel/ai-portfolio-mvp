@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 // last sync is stale; right after linking, Plaid can still be pulling history from the
 // bank, so it re-checks a few times and says what's happening instead of a bare "Synced".
 
-export type BankLinkInfo = { linked: boolean; lastSyncedAt: string | null; institutions: string[] };
+export type BankLinkInfo = { linked: boolean; lastSyncedAt: string | null; institutions: string[]; needsReconnect?: string[] };
 
 type SyncResult = {
   synced?: number; total?: number; newTransactions?: number; loading?: number; error?: string;
@@ -105,6 +105,14 @@ export default function BankSyncNote({ info }: { info: BankLinkInfo }) {
         </button>
       </div>
       {msg && <span role="status" style={{ fontSize: "var(--text-xs)", color, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{msg.text}</span>}
+      {(info.needsReconnect?.length ?? 0) > 0 && (
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+          <span style={{ color: "var(--amber)", fontWeight: 700 }}>{`${Array.from(new Set(info.needsReconnect)).join(", ")} stopped syncing`}</span>
+          {" because the bank wants you to log in again. "}
+          <Link href="/connections" style={{ color: "var(--brand-blue)", fontWeight: 600 }}>Reconnect</Link>
+          {" and new transactions start flowing again."}
+        </span>
+      )}
     </div>
   );
 }

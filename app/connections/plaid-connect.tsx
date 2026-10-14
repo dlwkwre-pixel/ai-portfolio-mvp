@@ -50,14 +50,20 @@ const TYPE_EMOJI: Record<string, string> = { depository: "🏦", credit: "💳",
 
 export default function PlaidConnect({ status }: { status: BankStatus }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "link" | "refresh">(null);
+  const [busy, setBusy] = useState<null | "link" | "refresh" | "reconnect">(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const connect = useCallback(async () => {
-    setBusy("link"); setErr(null); setMsg(null);
+  // No itemId → link a new bank. With an itemId → Plaid update mode: the user logs in to
+  // that bank again and the existing connection resumes syncing.
+  const connect = useCallback(async (reconnectItemId?: string) => {
+    setBusy(reconnectItemId ? "reconnect" : "link"); setErr(null); setMsg(null);
     try {
-      const res = await fetch("/api/connections/plaid/link-token", { method: "POST" });
+      const res = await fetch("/api/connections/plaid/link-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reconnectItemId ? { itemId: reconnectItemId } : {}),
+      });
       const d = await res.json();
       if (!res.ok) { setErr(d.error ?? "Could not start bank linking."); return; }
       const ok = await ensurePlaidScript();
@@ -65,6 +71,15 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
       const handler = window.Plaid.create({
         token: d.linkToken,
         onSuccess: async (publicToken, metadata) => {
+          if (reconnectItemId) {
+            try {
+              const rr = await fetch("/api/connections/plaid/refresh", { method: "POST" });
+              setMsg(rr.ok ? `Reconnected ${metadata?.institution?.name ?? "your bank"}. Syncing resumes now.` : "Reconnected. The next sync will pick up where it left off.");
+              router.refresh();
+            } catch { setMsg("Reconnected. The next sync will pick up where it left off."); }
+            finally { setBusy(null); }
+            return;
+          }
           try {
             const ex = await fetch("/api/connections/plaid/exchange", {
               method: "POST",
@@ -180,8 +195,18 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
                     {c.institution ?? "Linked bank"}
                     {` · ${c.accountCount} account${c.accountCount !== 1 ? "s" : ""}`}
                     {c.accountCount > 0 && c.duplicateCount === c.accountCount && <span style={{ color: "var(--amber)" }}> · all already linked elsewhere, safe to unlink</span>}
-                    {c.lastError ? " · sync issue" : ""}
+                    {c.needsReconnect
+                      ? <span style={{ color: "var(--amber)" }}> · needs you to log in again</span>
+                      : c.lastError ? " · sync issue" : ""}
                   </span>
+                  {c.needsReconnect && (
+                    <button
+                      type="button" disabled={busy !== null} onClick={() => void connect(c.itemId)}
+                      style={{ minHeight: "32px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--amber)", background: "transparent", color: "var(--text-primary)", fontSize: "var(--text-xs)", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)", flexShrink: 0 }}
+                    >
+                      {busy === "reconnect" ? "Opening…" : "Reconnect"}
+                    </button>
+                  )}
                   <button
                     type="button" disabled={busy !== null}
                     onClick={() => { if (window.confirm(`Unlink ${c.institution ?? "this bank"}? BuyTune's access is revoked and its balances are removed.`)) void unlink(c.itemId); }}

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncPlaidIntoCashFlow, type FoundTransfer } from "./plaid-cash-flow";
+import { needsReconnect } from "./plaid-errors";
 import { findDuplicateAccounts } from "./account-dedupe";
 
 // Plaid bank connections (balances-first, read-only). Server-only: the access token
@@ -40,15 +41,22 @@ async function plaidRequest<T>(path: string, body: Record<string, unknown>): Pro
   return data as T;
 }
 
-export async function createLinkToken(userId: string): Promise<string> {
+// With an accessToken this opens Link in update mode: the user logs in to that same bank
+// again and the existing connection (and its history) keeps working — no new Item, so it
+// doesn't use up a Trial slot.
+export async function createLinkToken(userId: string, accessToken?: string): Promise<string> {
   const data = await plaidRequest<{ link_token: string }>("/link/token/create", {
     client_name: "BuyTune",
     user: { client_user_id: userId },
-    products: ["transactions"],
-    // 90 days so a new connection fills the last few months of Cash Flow, not just one.
-    transactions: { days_requested: 90 },
     country_codes: ["US"],
     language: "en",
+    ...(accessToken
+      ? { access_token: accessToken }
+      : {
+          products: ["transactions"],
+          // 90 days so a new connection fills the last few months of Cash Flow, not just one.
+          transactions: { days_requested: 90 },
+        }),
   });
   return data.link_token;
 }
@@ -337,6 +345,7 @@ export type BankStatus = {
   configured: boolean;
   connections: Array<{
     itemId: string; institution: string | null; lastSyncedAt: string | null; lastError: string | null;
+    needsReconnect: boolean; // the bank wants the user to log in again (Link update mode)
     accountCount: number; duplicateCount: number; // duplicateCount === accountCount → safe to unlink
   }>;
   accounts: BankAccountRow[];
@@ -359,6 +368,7 @@ export async function getBankStatus(userId: string): Promise<BankStatus> {
       const mine = base.accounts.filter((a) => a.item_id === c.item_id);
       return {
         itemId: c.item_id, institution: c.institution_name ?? null, lastSyncedAt: c.last_synced_at ?? null, lastError: c.last_error ?? null,
+        needsReconnect: needsReconnect(c.last_error),
         accountCount: mine.length, duplicateCount: mine.filter((a) => a.duplicate_of).length,
       };
     });

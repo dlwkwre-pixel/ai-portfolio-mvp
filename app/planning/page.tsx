@@ -121,6 +121,7 @@ async function loadBankLink(userId: string): Promise<BankLinkInfo | null> {
     linked: status.connections.length > 0,
     lastSyncedAt: synced.length > 0 ? synced[synced.length - 1] : null,
     institutions: status.connections.map((c) => c.institution ?? "").filter(Boolean),
+    needsReconnect: status.connections.filter((c) => c.needsReconnect).map((c) => c.institution ?? "A linked bank"),
   };
 }
 
