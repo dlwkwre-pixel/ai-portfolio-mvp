@@ -4987,6 +4987,33 @@ export default function PlanningClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The data for every tab arrives with the page; only the heavier tabs' code is split out.
+  // Once the first tab is up and the browser is idle, fetch that code in the background,
+  // one tab at a time (most-visited first), so switching tabs never shows a placeholder.
+  useEffect(() => {
+    let cancelled = false;
+    const loaders = [
+      () => import("./cash-flow-tab"),
+      () => import("./balance-sheet-tab"),
+      () => import("./master-life-roadmap"),
+      () => import("./estate-planning-tab"),
+    ];
+    const warm = async () => {
+      for (const load of loaders) {
+        if (cancelled) return;
+        try { await load(); } catch { /* the tab just loads on click instead */ }
+      }
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    const idleId = w.requestIdleCallback ? w.requestIdleCallback(() => void warm(), { timeout: 4000 }) : null;
+    const timeoutId = idleId === null ? window.setTimeout(() => void warm(), 2000) : null;
+    return () => {
+      cancelled = true;
+      if (idleId !== null) w.cancelIdleCallback?.(idleId);
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, []);
+
   const TABS: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "balance", label: "Balance Sheet" },
