@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -38,6 +40,88 @@ function transactionWindowStart(): string {
   const d = new Date();
   d.setMonth(d.getMonth() - 18);
   return d.toISOString().slice(0, 10);
+}
+
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+type PortfolioRow = { id: string; name: string; cash_balance: number | string | null; account_type: string | null };
+type PortfolioAccount = { id: string; name: string; account_type: string | null; value: number };
+
+// Value each portfolio on its own so the balance sheet can classify it by account type
+// (a Roth IRA portfolio is tax-free money, a brokerage is taxable, etc.). Portfolios are
+// valued in parallel — each call hits market-data APIs, so a serial loop would make the
+// page wait on the sum of all latencies instead of the slowest one.
+async function valuePortfolios(supabase: ServerSupabase, portfolios: PortfolioRow[]): Promise<{ accounts: PortfolioAccount[]; total: number }> {
+  if (portfolios.length === 0) return { accounts: [], total: 0 };
+  const { data: allHoldings } = await supabase
+    .from("holdings")
+    .select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
+    .in("portfolio_id", portfolios.map((p) => p.id));
+  const byPortfolio = new Map<string, NonNullable<typeof allHoldings>>();
+  for (const h of allHoldings ?? []) {
+    const arr = byPortfolio.get(h.portfolio_id) ?? [];
+    arr.push(h);
+    byPortfolio.set(h.portfolio_id, arr);
+  }
+  const accounts = await Promise.all(portfolios.map(async (p) => {
+    const cash = Number(p.cash_balance ?? 0);
+    const hs = byPortfolio.get(p.id) ?? [];
+    let value = cash;
+    try {
+      if (hs.length > 0) {
+        const valuation = await getPortfolioValuation({
+          holdings: hs.map((h) => ({
+            id: h.id, ticker: h.ticker, company_name: h.company_name,
+            asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+            manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
+          })),
+          cashBalance: cash,
+        });
+        value = valuation.total_portfolio_value ?? cash;
+      }
+    } catch {
+      value = cash;
+    }
+    return { id: p.id, name: p.name, account_type: p.account_type ?? null, value };
+  }));
+  return { accounts, total: accounts.reduce((sum, a) => sum + a.value, 0) };
+}
+
+// "vs. 1 month ago" delta for the Balance Sheet page — one query per item/portfolio
+// (not one global query ordered by date) so a portfolio with dense recent daily
+// snapshots can't crowd out an older row belonging to a quieter portfolio before a
+// shared row cap reaches it. "linked:" items are excluded — they have no real row
+// in balance_sheet_items, so they'll never have history; showing no badge is correct.
+async function loadMonthAgoValues(supabase: ServerSupabase, itemIds: string[], portfolioIds: string[]): Promise<Record<string, number>> {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 1);
+  const cutoffIso = cutoff.toISOString();
+  const pairs = await Promise.all([
+    ...itemIds.map(async (id) => {
+      const { data } = await supabase.from("balance_sheet_item_history")
+        .select("value").eq("item_id", id).lte("recorded_at", cutoffIso)
+        .order("recorded_at", { ascending: false }).limit(1).maybeSingle();
+      return data ? [id, Number(data.value)] as const : null;
+    }),
+    ...portfolioIds.map(async (id) => {
+      const { data } = await supabase.from("portfolio_snapshots")
+        .select("total_value").eq("portfolio_id", id).lte("snapshot_date", cutoffIso)
+        .order("snapshot_date", { ascending: false }).limit(1).maybeSingle();
+      return data ? [id, Number(data.total_value)] as const : null;
+    }),
+  ]);
+  return Object.fromEntries(pairs.filter((x): x is readonly [string, number] => x !== null));
+}
+
+// Linked banks feed Cash Flow automatically; only shown to people with bank access.
+async function loadBankLink(userId: string): Promise<BankLinkInfo | null> {
+  if (!(await hasFeatureAccess(userId, "bank_connect").catch(() => false))) return null;
+  const status = await getBankStatus(userId);
+  const synced = status.connections.map((c) => c.lastSyncedAt).filter((d): d is string => !!d).sort();
+  return {
+    linked: status.connections.length > 0,
+    lastSyncedAt: synced.length > 0 ? synced[synced.length - 1] : null,
+    institutions: status.connections.map((c) => c.institution ?? "").filter(Boolean),
+  };
 }
 
 export default async function PlanningPage({
@@ -96,50 +180,39 @@ export default async function PlanningPage({
       .limit(36),
   ]);
 
-  // Value each portfolio on its own so the balance sheet can classify it by account type
-  // (a Roth IRA portfolio is tax-free money, a brokerage is taxable, etc.).
-  let portfolioTotalValue = 0;
-  const portfolioAccounts: { id: string; name: string; account_type: string | null; value: number }[] = [];
-  if (portfolios && portfolios.length > 0) {
-    const { data: allHoldings } = await supabase
-      .from("holdings")
-      .select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
-      .in("portfolio_id", portfolios.map((p) => p.id));
-    const byPortfolio = new Map<string, typeof allHoldings>();
-    for (const h of allHoldings ?? []) {
-      const arr = byPortfolio.get(h.portfolio_id) ?? [];
-      arr.push(h);
-      byPortfolio.set(h.portfolio_id, arr);
-    }
-    // Value every portfolio in parallel — each call hits market-data APIs, so running them
-    // serially made the planning page wait on the sum of all latencies. Promise.all bounds it
-    // to the slowest single valuation instead.
-    const valued = await Promise.all(portfolios.map(async (p) => {
-      const cash = Number(p.cash_balance ?? 0);
-      const hs = byPortfolio.get(p.id) ?? [];
-      let value = cash;
-      try {
-        if (hs.length > 0) {
-          const valuation = await getPortfolioValuation({
-            holdings: hs.map((h) => ({
-              id: h.id, ticker: h.ticker, company_name: h.company_name,
-              asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
-              manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
-            })),
-            cashBalance: cash,
-          });
-          value = valuation.total_portfolio_value ?? cash;
-        }
-      } catch {
-        value = cash;
-      }
-      return { id: p.id, name: p.name, account_type: p.account_type ?? null, value };
-    }));
-    for (const v of valued) {
-      portfolioAccounts.push(v);
-      portfolioTotalValue += v.value;
-    }
-  }
+  const typedBalanceItems: BalanceSheetItem[] = (balanceItems ?? []).map((item) => ({
+    id: item.id,
+    user_id: item.user_id,
+    label: item.label,
+    category: item.category,
+    value: Number(item.value),
+    is_liability: item.is_liability,
+    sort_order: item.sort_order,
+  }));
+
+  // Everything below depends only on the batch above, so it runs side by side rather than
+  // as a chain of round trips (each one ~100–300ms from the server to the database).
+  const [
+    { accounts: portfolioAccounts, total: portfolioTotalValue },
+    linkedBalanceItems,
+    { data: netWorthHistoryRows },
+    historicalValues,
+    bankLink,
+  ] = await Promise.all([
+    valuePortfolios(supabase, (portfolios ?? []) as PortfolioRow[]),
+    // Connected + manual bank balances join the sheet as read-only "linked:" items —
+    // net worth, buckets, health score, and forecasts all pick them up automatically.
+    getLinkedBalanceItems(user.id),
+    supabase
+      .from("net_worth_history")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("snapshot_date", { ascending: false })
+      .limit(180),
+    loadMonthAgoValues(supabase, typedBalanceItems.map((i) => i.id), (portfolios ?? []).map((p) => p.id)),
+    loadBankLink(user.id),
+  ]);
+
 
   const profile: FinancialProfile | null = profileData
     ? {
@@ -183,80 +256,38 @@ export default async function PlanningPage({
       }
     : null;
 
-  const typedBalanceItems: BalanceSheetItem[] = (balanceItems ?? []).map((item) => ({
-    id: item.id,
-    user_id: item.user_id,
-    label: item.label,
-    category: item.category,
-    value: Number(item.value),
-    is_liability: item.is_liability,
-    sort_order: item.sort_order,
-  }));
 
-  // Connected + manual bank balances join the sheet as read-only "linked:" items —
-  // net worth, buckets, health score, and forecasts all pick them up automatically.
-  const linkedBalanceItems = await getLinkedBalanceItems(user.id);
   const mergedBalanceItems: BalanceSheetItem[] = [...typedBalanceItems, ...linkedBalanceItems];
 
-  // Auto-snapshot net worth once per page load, server-side — mirrors the
-  // portfolio chart's auto-snapshot in app/dashboard/combined-chart.tsx.
-  // The old approach (a client useEffect calling a server action after
-  // hydration) depended on the browser tab staying open through that extra
-  // round trip and silently swallowed any failure, so it missed most visits
-  // — this runs unconditionally during SSR instead, same as the portfolio
-  // snapshot already does reliably.
+  // Auto-snapshot net worth once per page load, server-side (a client effect missed most
+  // visits). Today's row is merged into the history in memory so the chart shows it on
+  // this load, and the write itself happens after the response so it never delays the page.
   const snapshotManualAssets = mergedBalanceItems.filter((i) => !i.is_liability).reduce((s, i) => s + i.value, 0);
   const snapshotTotalLiabilities = mergedBalanceItems.filter((i) => i.is_liability).reduce((s, i) => s + i.value, 0);
   const snapshotTotalAssets = snapshotManualAssets + portfolioTotalValue;
+  let netWorthHistory = netWorthHistoryRows ?? [];
   if (snapshotTotalAssets > 0 || snapshotTotalLiabilities > 0) {
-    await supabase.from("net_worth_history").upsert(
-      {
-        user_id: user.id,
-        snapshot_date: new Date().toISOString().split("T")[0],
-        total_assets: snapshotTotalAssets,
-        total_liabilities: snapshotTotalLiabilities,
-        net_worth: snapshotTotalAssets - snapshotTotalLiabilities,
-        portfolio_value: portfolioTotalValue,
-      },
-      { onConflict: "user_id,snapshot_date" }
-    );
+    const today = new Date().toISOString().split("T")[0];
+    const snapshot = {
+      user_id: user.id,
+      snapshot_date: today,
+      total_assets: snapshotTotalAssets,
+      total_liabilities: snapshotTotalLiabilities,
+      net_worth: snapshotTotalAssets - snapshotTotalLiabilities,
+      portfolio_value: portfolioTotalValue,
+    };
+    const existing = netWorthHistory.find((r) => r.snapshot_date === today);
+    netWorthHistory = [
+      { ...existing, ...snapshot, id: existing?.id ?? `today-${today}` },
+      ...netWorthHistory.filter((r) => r.snapshot_date !== today),
+    ].slice(0, 180);
+    // Admin client: request cookies can't be read once the response has finished. The row
+    // is scoped to the user verified above.
+    after(async () => {
+      await createAdminClient().from("net_worth_history").upsert(snapshot, { onConflict: "user_id,snapshot_date" });
+    });
   }
 
-  // Fetched after the upsert above (not in the earlier Promise.all) so
-  // today's just-written snapshot is included in the chart on this same load.
-  const { data: netWorthHistory } = await supabase
-    .from("net_worth_history")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("snapshot_date", { ascending: false })
-    .limit(180);
-
-  // "vs. 1 month ago" delta for the Balance Sheet page — one query per item/portfolio
-  // (not one global query ordered by date) so a portfolio with dense recent daily
-  // snapshots can't crowd out an older row belonging to a quieter portfolio before a
-  // shared row cap reaches it. "linked:" items are excluded — they have no real row
-  // in balance_sheet_items, so addBalanceSheetItem/updateBalanceSheetItem never run
-  // for them and they'll never have history; simply showing no badge is correct.
-  const historyCutoff = new Date();
-  historyCutoff.setMonth(historyCutoff.getMonth() - 1);
-  const historyCutoffIso = historyCutoff.toISOString();
-  const [itemHistoryPairs, portfolioHistoryPairs] = await Promise.all([
-    Promise.all(typedBalanceItems.map(async (item) => {
-      const { data } = await supabase.from("balance_sheet_item_history")
-        .select("value").eq("item_id", item.id).lte("recorded_at", historyCutoffIso)
-        .order("recorded_at", { ascending: false }).limit(1).maybeSingle();
-      return data ? [item.id, Number(data.value)] as const : null;
-    })),
-    Promise.all(portfolioAccounts.map(async (pa) => {
-      const { data } = await supabase.from("portfolio_snapshots")
-        .select("total_value").eq("portfolio_id", pa.id).lte("snapshot_date", historyCutoffIso)
-        .order("snapshot_date", { ascending: false }).limit(1).maybeSingle();
-      return data ? [pa.id, Number(data.total_value)] as const : null;
-    })),
-  ]);
-  const historicalValues: Record<string, number> = Object.fromEntries(
-    [...itemHistoryPairs, ...portfolioHistoryPairs].filter((x): x is readonly [string, number] => x !== null)
-  );
 
   const typedCashFlowItems: CashFlowItem[] = (cashFlowItems ?? []).map((item) => ({
     id: item.id,
@@ -341,17 +372,6 @@ export default async function PlanningPage({
       }
     : null;
 
-  // Linked banks feed Cash Flow automatically; only shown to people with bank access.
-  let bankLink: BankLinkInfo | null = null;
-  if (await hasFeatureAccess(user.id, "bank_connect").catch(() => false)) {
-    const status = await getBankStatus(user.id);
-    const synced = status.connections.map((c) => c.lastSyncedAt).filter((d): d is string => !!d).sort();
-    bankLink = {
-      linked: status.connections.length > 0,
-      lastSyncedAt: synced.length > 0 ? synced[synced.length - 1] : null,
-      institutions: status.connections.map((c) => c.institution ?? "").filter(Boolean),
-    };
-  }
 
   const typedMonthCloses: MonthCloseRow[] = (monthClosesData ?? []).map((r) => ({
     period_year: r.period_year,
