@@ -55,6 +55,19 @@ function actionBadgeClass(action: string | null) {
   return "bt-badge bt-badge-hold";
 }
 
+// UTC calendar days for the streak check (kept out of render so it stays pure).
+function todayAndYesterdayUtc(): { today: string; yesterday: string } {
+  const now = Date.now();
+  return {
+    today: new Date(now).toISOString().slice(0, 10),
+    yesterday: new Date(now - 86_400_000).toISOString().slice(0, 10),
+  };
+}
+
+type RecentRun = { id: string; portfolio_id: string; status: string | null; summary: string | null; created_at: string };
+type RecentTransaction = { id: string; portfolio_id: string; transaction_type: string | null; ticker: string | null; net_cash_impact: number | null; traded_at: string };
+type ProposedRec = { id: string; portfolio_id: string; action_type: string | null; ticker: string | null; thesis: string | null; recommendation_status: string | null };
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -107,8 +120,7 @@ export default async function DashboardPage({
 
   // Streak: read stored value; client component will update it async
   const pd = streakData as { login_streak?: number | null; last_active_date?: string | null } | null;
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const { today, yesterday } = todayAndYesterdayUtc();
   const lastActive = pd?.last_active_date ?? null;
   // If last active was neither today nor yesterday, the streak is broken — show 0 until client updates
   const streakStale = lastActive !== today && lastActive !== yesterday;
@@ -198,20 +210,20 @@ export default async function DashboardPage({
     .map((h) => ({ ...h, weight_pct: totalValue > 0 ? (h.market_value / totalValue) * 100 : 0 }))
     .sort((a, b) => b.market_value - a.market_value);
 
-  let recentRuns: any[] = [];
-  let recentTransactions: any[] = [];
-  let latestRecommendations: any[] = [];
+  let recentRuns: RecentRun[] = [];
+  let recentTransactions: RecentTransaction[] = [];
+  let latestRecommendations: ProposedRec[] = [];
 
   if (recentActivity) {
     const [{ data: runs }, { data: transactions }, { data: recs }] = await recentActivity;
-    recentRuns = runs ?? [];
-    recentTransactions = transactions ?? [];
-    latestRecommendations = recs ?? [];
+    recentRuns = (runs ?? []) as RecentRun[];
+    recentTransactions = (transactions ?? []) as RecentTransaction[];
+    latestRecommendations = (recs ?? []) as ProposedRec[];
   }
 
   const portfolioNameById = new Map(activePortfolios.map((p) => [p.id, p.name]));
 
-  const recsByPortfolio = new Map<string, any[]>();
+  const recsByPortfolio = new Map<string, ProposedRec[]>();
   for (const rec of latestRecommendations) {
     const existing = recsByPortfolio.get(rec.portfolio_id) ?? [];
     if (existing.length < 3) existing.push(rec);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { runPortfolioAiRecommendation } from "./recommendation-actions";
 import LocalTime from "@/app/components/local-time";
 
@@ -101,12 +102,13 @@ export default function RunAiControls({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [router]);
 
-  const prevPendingRef = useRef(hasPendingRun);
-  useEffect(() => {
-    // A pending run that just cleared means it finished — drop the background state.
-    if (prevPendingRef.current && !hasPendingRun) { setBackgroundRunning(false); setInfoMessage(""); }
-    prevPendingRef.current = hasPendingRun;
-  }, [hasPendingRun]);
+  // A pending run that just cleared means it finished — drop the background state.
+  // Adjusted during render (React's pattern for reacting to a prop change), not in an effect.
+  const [prevPending, setPrevPending] = useState(hasPendingRun);
+  if (prevPending !== hasPendingRun) {
+    setPrevPending(hasPendingRun);
+    if (prevPending && !hasPendingRun) { setBackgroundRunning(false); setInfoMessage(""); }
+  }
 
   function handleRunAi() {
     if (isDisabled) return;
@@ -287,7 +289,7 @@ export default function RunAiControls({
             </svg>
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Not satisfied? Re-run with feedback</p>
           </div>
-          <p className="text-xs text-slate-500 mb-3">Tell Grok what you didn't like about the analysis. One additional run allowed.</p>
+          <p className="text-xs text-slate-500 mb-3">Tell Grok what you didn&apos;t like about the analysis. One additional run allowed.</p>
           <textarea
             value={feedbackNote}
             onChange={(e) => setFeedbackNote(e.target.value)}
@@ -401,7 +403,7 @@ export default function RunAiControls({
               )}
 
               {/* Edit link */}
-              <a
+              <Link
                 href="/strategies"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/8 hover:text-white transition"
               >
@@ -409,7 +411,7 @@ export default function RunAiControls({
                   <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
                 </svg>
                 Edit Strategy
-              </a>
+              </Link>
             </div>
           )}
         </div>

@@ -10,6 +10,27 @@ type AIRecommendationsSectionProps = {
   isLinked?: boolean;
 };
 
+
+type StrategyVersionRow = {
+  id: string; version_number: number | null; prompt_text: string | null;
+  max_position_pct: number | null; cash_min_pct: number | null; cash_max_pct: number | null;
+};
+type AssignmentRow = {
+  strategy_id: string | null;
+  // PostgREST embeds come back as an object or a one-element array depending on the relation
+  strategies: { id: string; name: string | null; style: string | null } | { id: string; name: string | null; style: string | null }[] | null;
+  strategy_versions: StrategyVersionRow | StrategyVersionRow[] | null;
+};
+
+function one<T>(v: T | T[] | null | undefined): T | null {
+  return Array.isArray(v) ? v[0] ?? null : v ?? null;
+}
+
+// Kept out of render so the component body stays pure.
+function msSince(iso: string): number {
+  return Date.now() - new Date(iso).getTime();
+}
+
 export default async function AIRecommendationsSection({
   portfolioId,
   isLinked,
@@ -40,8 +61,9 @@ export default async function AIRecommendationsSection({
   ]);
 
   // Always use latest strategy version
-  let latestStrategyVersion = (activeAssignmentRaw as any)?.strategy_versions ?? null;
-  const assignedStrategyId = (activeAssignmentRaw as any)?.strategy_id ?? null;
+  const assignment = activeAssignmentRaw as AssignmentRow | null;
+  let latestStrategyVersion: StrategyVersionRow | null = one(assignment?.strategy_versions);
+  const assignedStrategyId = assignment?.strategy_id ?? null;
   if (assignedStrategyId) {
     const { data: latestVersion } = await supabase
       .from("strategy_versions")
@@ -50,13 +72,13 @@ export default async function AIRecommendationsSection({
       .order("version_number", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (latestVersion) latestStrategyVersion = latestVersion;
+    if (latestVersion) latestStrategyVersion = latestVersion as StrategyVersionRow;
   }
 
   const currentStrategy = activeAssignmentRaw ? {
     id: assignedStrategyId as string | null,
-    name: ((activeAssignmentRaw as any)?.strategies?.name ?? null) as string | null,
-    style: ((activeAssignmentRaw as any)?.strategies?.style ?? null) as string | null,
+    name: one(assignment?.strategies)?.name ?? null,
+    style: one(assignment?.strategies)?.style ?? null,
     promptText: (latestStrategyVersion?.prompt_text ?? null) as string | null,
     versionNumber: (latestStrategyVersion?.version_number ?? null) as number | null,
     maxPositionPct: (latestStrategyVersion?.max_position_pct ?? null) as number | null,
@@ -85,7 +107,7 @@ export default async function AIRecommendationsSection({
     runs?.filter((run) => {
       const isPending = ["pending", "running", "queued"].includes(String(run.status ?? "").toLowerCase());
       if (!isPending) return false;
-      return Date.now() - new Date(run.created_at).getTime() < PENDING_STALE_MS;
+      return msSince(run.created_at) < PENDING_STALE_MS;
     }).length ?? 0;
 
   // Pre-calculate cooldown window for the UI

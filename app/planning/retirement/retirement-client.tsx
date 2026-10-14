@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import InfoTooltip from "@/app/components/info-tooltip";
 
@@ -105,16 +105,18 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
   const [spend, setSpend] = useState(prefill.grossMonthlyIncome ? Math.round(prefill.grossMonthlyIncome * 12 * 0.7) : 60000);
   const [ret, setRet] = useState(6);
   const [infl, setInfl] = useState(2.5);
-  const [pia, setPia] = useState(2400);
+  const [pia] = useState(2400);
   const [tradTaxRate, setTradTaxRate] = useState(15);
   const [claimAge, setClaimAge] = useState(67);
 
   const balances: Balances = { taxable, traditional, roth };
   const base = { balances, spendToday: spend, currentAge, retireAge, planAge, ret, infl, pia, tradTaxRate };
 
-  const sim = useMemo(() => simulate({ ...base, claimAge }), [taxable, traditional, roth, spend, currentAge, retireAge, planAge, ret, infl, pia, tradTaxRate, claimAge]);
-  const sim62 = useMemo(() => simulate({ ...base, claimAge: 62 }), [taxable, traditional, roth, spend, currentAge, retireAge, planAge, ret, infl, pia, tradTaxRate]);
-  const sim70 = useMemo(() => simulate({ ...base, claimAge: 70 }), [taxable, traditional, roth, spend, currentAge, retireAge, planAge, ret, infl, pia, tradTaxRate]);
+  // The React Compiler memoizes these on their inputs; hand-written useMemo deps here were
+  // incomplete (they omitted `base`) and made the compiler skip this component.
+  const sim = simulate({ ...base, claimAge });
+  const sim62 = simulate({ ...base, claimAge: 62 });
+  const sim70 = simulate({ ...base, claimAge: 70 });
 
   // SS claiming comparison (nominal lifetime to plan age, no COLA — for a clean apples-to-apples).
   const ssAges = [62, FRA, 70];
@@ -136,7 +138,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
   const verdictColor = lasts ? "var(--green)" : sim.depletionAge! >= planAge - 3 ? "var(--amber, #f59e0b)" : "var(--red)";
 
   // Chart
-  const chart = useMemo(() => {
+  const chart = (() => {
     if (!sim.series.length) return null;
     const maxVal = Math.max(...sim.series.map((s) => s.balance), 1);
     const W = 320, H = 120, pad = 6;
@@ -144,7 +146,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
     const y = (v: number) => H - pad - (v / maxVal) * (H - 2 * pad);
     const path = sim.series.map((s, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(s.balance).toFixed(1)}`).join(" ");
     return { W, H, path, maxVal };
-  }, [sim.series]);
+  })();
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
