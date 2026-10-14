@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { deleteCashActivity, updateCashActivity, restoreCashActivity, previewCashActivityDeletion } from "./actions";
+import LocalTime from "@/app/components/local-time";
 
 const CASH_REASONS = ["deposit", "withdrawal", "dividend", "adjustment_in", "adjustment_out", "fee"] as const;
 type CashReason = (typeof CASH_REASONS)[number];
@@ -200,7 +201,7 @@ export function CashActivityList({
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <p style={{ fontSize: "12px", color: "var(--text-primary)", textTransform: "capitalize" }}>{entry.reason.replaceAll("_", " ")}</p>
-                    <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{new Date(entry.effective_at).toLocaleString()}</p>
+                    <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}><LocalTime value={entry.effective_at} /></p>
                   </div>
                   <p style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 500, color: entry.direction === "IN" ? "var(--green)" : "var(--red)" }}>
                     {entry.direction === "IN" ? "+" : "-"}{formatMoney(Number(entry.amount))}
@@ -243,7 +244,7 @@ export function CashActivityList({
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px" }}>
                 <div>
                   <p style={{ fontSize: "12px", color: "var(--text-primary)", textTransform: "capitalize" }}>{entry.reason.replaceAll("_", " ")}</p>
-                  <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{new Date(entry.effective_at).toLocaleString()}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}><LocalTime value={entry.effective_at} /></p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <p style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 500, color: entry.direction === "IN" ? "var(--green)" : "var(--red)" }}>

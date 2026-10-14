@@ -1753,7 +1753,7 @@ export default function CommunityClient({
       <PageTutorial tutorialId="community" />
 
       {/* ── Animated tab bar ────────────────────────────────────────────────── */}
-      <div style={{ position: "relative", display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "0" }}>
+      <div style={{ position: "relative", display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "0", overflowX: "auto", scrollbarWidth: "none" }}>
         {/* Sliding indicator */}
         <div style={{
           position: "absolute", bottom: -1, height: "2px", borderRadius: "2px",
@@ -1775,7 +1775,7 @@ export default function CommunityClient({
                 fontWeight: isActive ? 600 : 400, fontFamily: "var(--font-body)",
                 background: "none", border: "none",
                 color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
-                cursor: "pointer", whiteSpace: "nowrap",
+                cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
                 transition: "color 150ms ease",
                 display: "flex", alignItems: "center", gap: "5px",
               }}

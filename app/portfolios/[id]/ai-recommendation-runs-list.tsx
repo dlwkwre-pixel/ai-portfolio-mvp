@@ -1,5 +1,6 @@
 "use client";
 
+import LocalTime from "@/app/components/local-time";
 import { useState, useEffect, useCallback } from "react";
 import {
   updateRecommendationStatus,
@@ -1519,7 +1520,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                         </div>
                       )}
 
-                      <p className="mt-2 text-xs text-slate-700">{new Date(item.created_at).toLocaleString()}</p>
+                      <p className="mt-2 text-xs text-slate-700"><LocalTime value={item.created_at} /></p>
                     </div>
                   )}
                 </div>

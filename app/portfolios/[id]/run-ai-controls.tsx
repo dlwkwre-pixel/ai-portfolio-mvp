@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { runPortfolioAiRecommendation } from "./recommendation-actions";
+import LocalTime from "@/app/components/local-time";
 
 type CurrentStrategy = {
   id: string | null;
@@ -24,10 +25,6 @@ type RunAiControlsProps = {
 };
 
 
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
 
 function useCooldownTimer(cooldownEndsAt: string | null) {
   const [remaining, setRemaining] = useState<number>(() => {
@@ -194,7 +191,7 @@ export default function RunAiControls({
               {pendingRunCount} pending
             </span>
             <span className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-slate-400">
-              Last run: {formatDate(latestRunCreatedAt)}
+              Last run: {latestRunCreatedAt ? <LocalTime value={latestRunCreatedAt} /> : "—"}
             </span>
           </div>
 

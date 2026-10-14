@@ -206,7 +206,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
         {/* SS optimizer */}
         <div style={cardStyle}>
           <span style={sectionTitle}>When to claim Social Security<HintDot text="Claiming early (62) locks in a permanently smaller check; waiting to 70 grows it ~8%/yr. The right answer depends on how long you live and whether you need the income sooner." /></span>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))", gap: "10px", marginBottom: "12px" }}>
             {ssCompare.map((s) => {
               const selected = claimAge === s.age;
               return (

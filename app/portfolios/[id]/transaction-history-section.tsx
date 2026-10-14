@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AddTransactionForm from "./add-transaction-form";
 import TransactionActions from "./transaction-actions-client";
+import LocalTime from "@/app/components/local-time";
 
 type TransactionHistorySectionProps = {
   portfolioId: string;
@@ -148,7 +149,7 @@ export default async function TransactionHistorySection({ portfolioId }: Transac
                       </div>
                     )}
 
-                    <p className="mt-2 text-xs text-slate-600">{new Date(tx.traded_at).toLocaleString()}</p>
+                    <p className="mt-2 text-xs text-slate-600"><LocalTime value={tx.traded_at} /></p>
 
                     <TransactionActions
                       transaction={{

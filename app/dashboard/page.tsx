@@ -313,7 +313,7 @@ export default async function DashboardPage({
                 <NotificationCenter />
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
               <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
               <XpLevelChip userId={user.id} />
               <StreakBadge initialStreak={initialStreak} />

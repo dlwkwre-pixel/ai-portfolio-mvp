@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import RecommendationStatusButtons from "./recommendation-status-buttons";
+import LocalTime from "@/app/components/local-time";
 
 type RedditPulse = {
   source?: "reddit" | "apewisdom" | "stockgeist" | "tradestie";
@@ -648,7 +649,7 @@ export default function AIRecommendationsList({
 
                 <div className="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                   <p>Status: {item.recommendation_status ?? "—"}</p>
-                  <p>Created {new Date(item.created_at).toLocaleString()}</p>
+                  <p>Created <LocalTime value={item.created_at} /></p>
                 </div>
               </div>
             ))}

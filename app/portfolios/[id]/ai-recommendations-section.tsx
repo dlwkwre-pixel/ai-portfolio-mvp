@@ -3,6 +3,7 @@ import AIRecommendationRunsList from "./ai-recommendation-runs-list";
 import RunAiControls from "./run-ai-controls";
 import HealthReportCard, { type HealthReport } from "./health-report-card";
 import AdviceDisclaimer from "@/app/components/advice-disclaimer";
+import LocalTime from "@/app/components/local-time";
 
 type AIRecommendationsSectionProps = {
   portfolioId: string;
@@ -198,7 +199,7 @@ export default async function AIRecommendationsSection({
               <span className="text-[10px] text-slate-600">
                 {new Date(latestRun.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                 {" · "}
-                {new Date(latestRun.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                <LocalTime value={latestRun.created_at} mode="time" options={{ hour: "numeric", minute: "2-digit" }} />
               </span>
             </div>
 
@@ -252,7 +253,7 @@ export default async function AIRecommendationsSection({
                   <span className="text-[10px] text-slate-500">
                     {new Date(run.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     {" · "}
-                    {new Date(run.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    <LocalTime value={run.created_at} mode="time" options={{ hour: "numeric", minute: "2-digit" }} />
                   </span>
                   <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{
                     background: run.status === "completed" ? "rgba(0,211,149,0.08)" : "rgba(100,116,139,0.1)",
