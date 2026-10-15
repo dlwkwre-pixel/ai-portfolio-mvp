@@ -5,7 +5,21 @@ import Link from "next/link";
 import CountUp from "@/app/admin/count-up";
 import { BrandGlyph } from "@/app/components/brand-mark";
 
+export type MoneyYear = {
+  earned: number;
+  spent: number;
+  saved: number;                 // moved to savings/investments (Cash Flow "save" rows)
+  savingsRate: number | null;    // (earned − spent) / earned, %
+  topMonth: { month: number; amount: number } | null;
+  topCategory: { label: string; amount: number } | null;
+  subscriptionsYearly: number;
+  subscriptionCount: number;
+  netWorthGrowth: number | null;
+  partialFromMonth: number | null; // tracking started mid-year (month number)
+};
+
 export type WrappedStats = {
+  money?: MoneyYear | null;
   year: number;
   totalValue: number;
   contributions: number;
@@ -49,12 +63,29 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
   if (stats.badges > 0) slides.push({ key: "badges", label: "Badges unlocked", value: stats.badges, sub: "achievements earned this year", emoji: "🎖️" });
   if (stats.longestStreak > 0) slides.push({ key: "streak", label: "Longest streak", value: stats.longestStreak, suffix: " days", sub: "showing up builds wealth", emoji: "🔥" });
 
+  // The money side of the year (Cash Flow + net worth).
+  const mny = stats.money;
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const sinceNote = mny?.partialFromMonth ? ` since you started tracking in ${MONTHS[mny.partialFromMonth - 1]}` : "";
+  const moneySlides: Slide[] = [];
+  if (mny) {
+    if (mny.earned > 0) moneySlides.push({ key: "earned", label: "Money in", value: mny.earned, prefix: "$", sub: `income you recorded${sinceNote}`, emoji: "💵" });
+    if (mny.spent > 0) moneySlides.push({ key: "spent", label: "Money out", value: mny.spent, prefix: "$", sub: `everything you spent${sinceNote}`, emoji: "🧾" });
+    if (mny.savingsRate !== null && mny.savingsRate > 0) moneySlides.push({ key: "rate", label: "Savings rate", value: mny.savingsRate, suffix: "%", sub: "of your income you didn't spend", emoji: "🐖" });
+    if (mny.topCategory) moneySlides.push({ key: "cat", label: "Where most of it went", value: mny.topCategory.amount, prefix: "$", sub: mny.topCategory.label, emoji: "🏷️" });
+    if (mny.topMonth) moneySlides.push({ key: "month", label: "Your biggest spending month", value: mny.topMonth.amount, prefix: "$", sub: MONTHS[mny.topMonth.month - 1], emoji: "📅" });
+    if (mny.subscriptionsYearly > 0) moneySlides.push({ key: "subs", label: "Subscriptions, per year", value: mny.subscriptionsYearly, prefix: "$", sub: `${mny.subscriptionCount} bill${mny.subscriptionCount === 1 ? "" : "s"} and subscription${mny.subscriptionCount === 1 ? "" : "s"} you're still paying`, emoji: "🔁" });
+    if (mny.netWorthGrowth !== null && mny.netWorthGrowth > 0) moneySlides.push({ key: "nw", label: "Net worth grew by", value: mny.netWorthGrowth, prefix: "$", sub: `from your first snapshot of ${stats.year} to now`, emoji: "🌱" });
+  }
+
   async function share() {
     const lines = [`My ${stats.year} on BuyTune:`];
     if (stats.totalValue > 0) lines.push(`💼 $${stats.totalValue.toLocaleString()} portfolio`);
     if (stats.topGainer) lines.push(`🏆 ${stats.topGainer.ticker} +${stats.topGainer.gainPct}%`);
     if (stats.contributions > 0) lines.push(`📈 $${stats.contributions.toLocaleString()} invested`);
     if (stats.xpThisYear > 0) lines.push(`⚡ Level ${stats.level}`);
+    // Spending amounts stay private; only the savings rate is shareable.
+    if (stats.money?.savingsRate && stats.money.savingsRate > 0) lines.push(`🐖 Saved ${stats.money.savingsRate}% of my income`);
     const text = lines.join("\n") + "\n\nTrack yours at buytune.io";
     try {
       if (navigator.share) { await navigator.share({ title: `My ${stats.year} in Review`, text }); return; }
@@ -78,7 +109,7 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 800, letterSpacing: "-0.5px", margin: "4px 0 0", textTransform: "capitalize" }}>{stats.name}&apos;s year</h1>
         </div>
 
-        {slides.length === 0 ? (
+        {slides.length === 0 && moneySlides.length === 0 ? (
           <div className="bt-wr-card" style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-tertiary)", fontSize: "14px" }}>
             Not much to recap yet — add holdings, run an analysis, and check in daily. Your {stats.year} story is just getting started.
           </div>
@@ -98,6 +129,28 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
             <div style={{ fontSize: "13px", color: s.hero ? "rgba(255,255,255,0.9)" : "var(--text-secondary)", marginTop: "10px", lineHeight: 1.5 }}>{s.sub}</div>
           </div>
         ))}
+
+        {moneySlides.length > 0 && (
+          <>
+            <div className="bt-wr-card" style={{ animationDelay: `${slides.length * 90}ms`, textAlign: "center", marginTop: "10px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Your money in {stats.year}</div>
+            </div>
+            {moneySlides.map((s, i) => (
+              <div key={s.key} className="bt-wr-card" style={{
+                animationDelay: `${(slides.length + 1 + i) * 90}ms`,
+                borderRadius: "20px", padding: "26px 24px", textAlign: "center",
+                background: "var(--card-bg)", border: "1px solid var(--card-border)",
+              }}>
+                <div style={{ fontSize: "26px", marginBottom: "8px" }}>{s.emoji}</div>
+                <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>{s.label}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "42px", fontWeight: 800, lineHeight: 1, letterSpacing: "-1px", color: s.key === "nw" ? "var(--green)" : "var(--text-primary)" }}>
+                  <CountUp value={s.value} prefix={s.prefix ?? ""} suffix={s.suffix ?? ""} />
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "10px", lineHeight: 1.5 }}>{s.sub}</div>
+              </div>
+            ))}
+          </>
+        )}
 
         {/* Closing + share */}
         <div className="bt-wr-card" style={{ animationDelay: `${slides.length * 90}ms`, textAlign: "center", marginTop: "6px" }}>
