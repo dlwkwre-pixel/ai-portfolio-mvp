@@ -10,6 +10,7 @@ import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot
 import { ageFromDob } from "./planning-utils";
 import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import { kvGetIds } from "@/lib/kv";
+import { getCashBenchmark } from "@/lib/market-data/treasury";
 import { rollupTransactionActuals, type CashFlowTransaction } from "@/lib/planning/transactions";
 import type { MonthCloseRow } from "./month-close-card";
 import type { BankLinkInfo } from "./bank-sync-note";
@@ -201,6 +202,8 @@ export default async function PlanningPage({
     historicalValues,
     bankLink,
     dismissedAlerts,
+    { data: accountRateRows },
+    cashBenchmark,
   ] = await Promise.all([
     valuePortfolios(supabase, (portfolios ?? []) as PortfolioRow[]),
     // Connected + manual bank balances join the sheet as read-only "linked:" items —
@@ -215,7 +218,13 @@ export default async function PlanningPage({
     loadMonthAgoValues(supabase, typedBalanceItems.map((i) => i.id), (portfolios ?? []).map((p) => p.id)),
     loadBankLink(user.id),
     kvGetIds(`unusualok:${user.id}`),
+    // Missing table (migration not run) → null → no rates.
+    supabase.from("account_rates").select("item_ref, rate_pct").eq("user_id", user.id),
+    getCashBenchmark(),
   ]);
+  const accountRates: Record<string, number> = Object.fromEntries(
+    (accountRateRows ?? []).map((r) => [r.item_ref as string, Number(r.rate_pct)]),
+  );
 
 
   const profile: FinancialProfile | null = profileData
@@ -464,6 +473,8 @@ export default async function PlanningPage({
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
           dismissedAlerts={dismissedAlerts}
+          accountRates={accountRates}
+          cashBenchmark={cashBenchmark}
           historicalValues={historicalValues}
           portfolioTotalValue={portfolioTotalValue}
           portfolioAccounts={portfolioAccounts}

@@ -1639,3 +1639,25 @@ export async function dismissUnusualCharges(ids: string[]): Promise<{ error?: st
   if (clean.length > 0) await kvAddIds(`unusualok:${user.id}`, clean);
   return {};
 }
+
+// APY/APR for one balance-sheet account (supabase/account-rates.sql). itemRef is the
+// balance item id — a balance_sheet_items id, or "linked:<account_id>". null clears it.
+export async function setAccountRate(itemRef: string, ratePct: number | null): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  if (typeof itemRef !== "string" || itemRef.length === 0 || itemRef.length > 200) return { error: "Unknown account." };
+  if (ratePct === null) {
+    const { error } = await supabase.from("account_rates").delete().eq("user_id", user.id).eq("item_ref", itemRef);
+    if (error) return { error: error.message };
+  } else {
+    if (!Number.isFinite(ratePct) || ratePct < 0 || ratePct > 100) return { error: "Enter a rate between 0 and 100." };
+    const { error } = await supabase.from("account_rates").upsert(
+      { user_id: user.id, item_ref: itemRef, rate_pct: Math.round(ratePct * 1000) / 1000, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,item_ref" },
+    );
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/planning");
+  return {};
+}

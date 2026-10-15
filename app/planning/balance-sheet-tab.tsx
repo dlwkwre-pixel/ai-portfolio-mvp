@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import IdleCashCard from "./idle-cash-card";
+import type { CashBenchmark } from "@/lib/market-data/treasury";
 import type { BalanceSheetItem, NetWorthSnapshot } from "./planning-actions";
 import { addBalanceSheetItem, deleteBalanceSheetItem } from "./planning-actions";
 import LinkedDuplicatesReview from "./linked-duplicates-review";
@@ -26,7 +28,8 @@ const LIAB_CAT_LABELS: Record<string, string> = {
 };
 
 export default function BalanceSheetOS({
-  balanceItems, portfolioTotalValue, portfolioAccounts = [], effectiveExpenses, netWorthHistory, historicalValues = {}, isPrivate,
+  balanceItems, portfolioTotalValue, portfolioAccounts = [], effectiveExpenses, netWorthHistory, historicalValues = {},
+  accountRates = {}, cashBenchmark = null, emergencyFundMonths = 6, isPrivate,
 }: {
   balanceItems: BalanceSheetItem[];
   portfolioTotalValue: number;
@@ -34,6 +37,9 @@ export default function BalanceSheetOS({
   effectiveExpenses: number;
   netWorthHistory: NetWorthSnapshot[];
   historicalValues?: Record<string, number>; // item/portfolio id -> value ~1 month ago
+  accountRates?: Record<string, number>;     // item id -> APY/APR % (account_rates)
+  cashBenchmark?: CashBenchmark | null;
+  emergencyFundMonths?: number;
   isPrivate: boolean;
 }) {
   const ph = (v: string) => isPrivate ? "••••" : v;
@@ -146,6 +152,14 @@ export default function BalanceSheetOS({
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnInsight}</p>
         </div>
       </div>
+
+      <IdleCashCard
+        cashAccounts={assets.filter((i) => i.category === "cash").map((i) => ({ id: i.id, label: i.label, balance: i.value, rate: accountRates[i.id] ?? null }))}
+        monthlySpend={effectiveExpenses}
+        emergencyMonths={emergencyFundMonths}
+        benchmark={cashBenchmark}
+        isPrivate={isPrivate}
+      />
 
       {/* Zone 2 — Asset Allocation + Liability Breakdown */}
       {(assetBuckets.length > 0 || liabBuckets.length > 0) && (
@@ -287,7 +301,7 @@ export default function BalanceSheetOS({
               </div>
             );
           })}
-          {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} />)}
+          {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} rate={accountRates[item.id] ?? null} />)}
           <div style={{ marginTop: "10px" }}><AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} /></div>
         </div>
         <div style={{ marginBottom: "20px", paddingTop: "4px", borderTop: "1px solid var(--border-subtle)" }}>
@@ -295,7 +309,7 @@ export default function BalanceSheetOS({
             <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Liabilities</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: totalLiabilities > 0 ? "oklch(0.65 0.18 25)" : "var(--text-muted)", fontWeight: 600 }}>{ph(fmt(totalLiabilities))}</span>
           </div>
-          {liabilities.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} />)}
+          {liabilities.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} rate={accountRates[item.id] ?? null} />)}
           <div style={{ marginTop: "10px" }}><AddItemRow type="balance" sectionType="liability" placeholder="e.g. Student loan" onAdd={addBalanceSheetItem} /></div>
         </div>
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

@@ -35,6 +35,7 @@ import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEsta
 import type { CashFlowTransaction } from "@/lib/planning/transactions";
 import type { MonthCloseRow } from "./month-close-card";
 import type { BankLinkInfo } from "./bank-sync-note";
+import type { CashBenchmark } from "@/lib/market-data/treasury";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -3092,6 +3093,8 @@ type Props = {
   monthCloses: MonthCloseRow[];
   bankLink: BankLinkInfo | null;
   dismissedAlerts?: string[];
+  accountRates?: Record<string, number>;
+  cashBenchmark?: CashBenchmark | null;
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
   initialTab?: string;
@@ -3114,7 +3117,7 @@ const ATLAS_THINKING = [
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, dismissedAlerts = [], budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, dismissedAlerts = [], accountRates = {}, cashBenchmark = null, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -6191,6 +6194,9 @@ export default function PlanningClient({
           effectiveExpenses={effectiveExpenses}
           netWorthHistory={netWorthHistory}
           historicalValues={historicalValues}
+          accountRates={accountRates}
+          cashBenchmark={cashBenchmark}
+          emergencyFundMonths={profile?.emergency_fund_months ?? 6}
           isPrivate={isPrivate}
         />
       )}
@@ -6205,6 +6211,7 @@ export default function PlanningClient({
             monthCloses={monthCloses}
             bankLink={bankLink}
             dismissedAlerts={dismissedAlerts}
+            ratedDebts={balanceItems.filter((i) => i.is_liability).map((i) => ({ id: i.id, label: i.label, balance: i.value, rate: accountRates[i.id] ?? null, revolving: i.category === "credit_card" }))}
             netWorthHistory={netWorthHistory}
             budgetHistory={budgetHistory}
             effectiveIncome={effectiveIncome}

@@ -22,6 +22,8 @@ import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
 import UnusualChargesCard from "./unusual-charges-card";
 import { findUnusualCharges } from "@/lib/planning/unusual-charges";
+import LeftoverPlan from "./leftover-plan";
+import type { RatedAccount } from "@/lib/planning/money-priorities";
 import StickyMonthBar from "./sticky-month-bar";
 import { billPlanForMonth } from "@/lib/planning/frequency";
 import BillScheduleEditor from "./bill-schedule-editor";
@@ -1067,7 +1069,7 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
@@ -1076,6 +1078,7 @@ export default function CashFlowOS({
   monthCloses?: MonthCloseRow[];
   bankLink?: BankLinkInfo | null;
   dismissedAlerts?: string[];
+  ratedDebts?: RatedAccount[];
   netWorthHistory?: NetWorthSnapshot[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
@@ -2126,25 +2129,12 @@ export default function CashFlowOS({
                 behind the number, not a pure budget guess (was a separate callout
                 elsewhere on the page; folded in here since it's the same figure). */}
             {!nothingLogged && forecast.availableToInvest > 50 && viewMode === "monthly" && (
-              <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
-                <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 7px", lineHeight: 1.5 }}>
-                  You&apos;re {ph(fmt(forecast.availableToInvest))} ahead — where should it go?
-                </p>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                  {[
-                    { label: "Invest it",         href: "/portfolios" },
-                    { label: "Emergency fund",    href: "/planning?tab=balance" },
-                    { label: "Toward a goal",     href: "/planning?tab=events" },
-                  ].map(({ label, href }) => (
-                    <a key={label} href={href} style={{
-                      padding: "5px 12px", borderRadius: "6px", border: "1px solid rgba(34,197,94,0.25)",
-                      background: "rgba(34,197,94,0.07)", color: "oklch(0.72 0.19 145)",
-                      fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)",
-                      textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap",
-                    }}>{label}</a>
-                  ))}
-                </div>
-              </div>
+              <LeftoverPlan
+                amount={forecast.monthlySurplus}
+                debts={ratedDebts}
+                emergencyGap={forecast.emergencyFundFunded ? 0 : Math.max(0, forecast.emergencyFundTarget - Math.max(0, forecast.freeCash))}
+                isPrivate={isPrivate}
+              />
             )}
           </div>
           <div style={{ minWidth: "200px" }}>

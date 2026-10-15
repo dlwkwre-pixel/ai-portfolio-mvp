@@ -7,6 +7,8 @@
 // import from, avoiding a circular import back into planning-client.tsx.
 
 import { useState, useRef, useTransition } from "react";
+import RateChip from "./rate-chip";
+import { rateKindFor } from "@/lib/planning/money-priorities";
 import { useRouter } from "next/navigation";
 import type { BalanceSheetItem, CashFlowItem, BudgetHistoryEntry } from "./planning-actions";
 import { toMonthlyAmount, frequencySuffix } from "@/lib/planning/frequency";
@@ -392,7 +394,7 @@ export function AddItemRow({
 
 export function LineItemRow({
   item, type, onDelete, isPrivate = false, editTitle,
-  paidStatus, onMarkPaid, onClearPaid, historicalValue,
+  paidStatus, onMarkPaid, onClearPaid, historicalValue, rate,
 }: {
   item: BalanceSheetItem | CashFlowItem;
   type: "balance" | "cashflow";
@@ -408,6 +410,8 @@ export function LineItemRow({
   // Balance-sheet-only — this item's value ~1 month ago, if known. See
   // balance_sheet_item_history / portfolio_snapshots in page.tsx.
   historicalValue?: number | null;
+  // Balance-sheet-only — APY/APR the user set (account_rates). undefined = no chip.
+  rate?: number | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -527,6 +531,10 @@ export function LineItemRow({
         {!isBalance && (cf as CashFlowItem).is_variable && (
           <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
+        {isBalance && rate !== undefined && (() => {
+          const kind = rateKindFor(bal.category, bal.is_liability);
+          return kind ? <RateChip itemRef={item.id} kind={kind} rate={rate} balance={bal.value} isPrivate={isPrivate} /> : null;
+        })()}
         {isBalance && !bal.is_liability && bal.category !== "cash" && (() => {
           const b = effectiveTaxBucket(bal);
           if (!b) return null;
