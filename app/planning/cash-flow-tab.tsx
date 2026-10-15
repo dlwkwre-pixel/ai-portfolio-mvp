@@ -33,7 +33,7 @@ import PaceGuide, { type PaceData } from "./pace-guide";
 import MoneyStory from "./money-story";
 import BankSyncNote, { type BankLinkInfo } from "./bank-sync-note";
 import AddTransactionForm from "./add-transaction-form";
-import { deleteImportBatch, updateTransactionBucket } from "./planning-actions";
+import { deleteImportBatch, updateTransactionBucket, deleteTransaction } from "./planning-actions";
 import TransactionImportPanel, { type ImportSavedSummary } from "./transaction-import-panel";
 import MonthTransactions from "./month-transactions";
 
@@ -1807,9 +1807,26 @@ export default function CashFlowOS({
                     <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
                       {"  "}{t.merchant}
-                      <span style={{ color: "var(--text-muted)" }}> · {src ? `pay from ${src.label}` : "extra"}</span>
                     </span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
+                    </span>
+                  </div>
+                  {/* Fix how a recorded deposit counts, right where income is shown. */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <select
+                      aria-label={`How ${t.merchant} counts`}
+                      value={t.cash_flow_item_id && src ? src.id : ""}
+                      onChange={async (e) => { await updateTransactionBucket(t.id, e.target.value || null, false); router.refresh(); }}
+                      style={{ minHeight: "32px", maxWidth: "100%", padding: "0 6px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: "var(--bg-base)", color: "var(--text-secondary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+                      <option value="">Extra, one-time (on top of expected)</option>
+                      {incomeItems.map((i) => <option key={i.id} value={i.id}>{`Paycheck from ${i.label} (replaces expected)`}</option>)}
+                    </select>
+                    <button type="button"
+                      onClick={async () => { if (!window.confirm(`Delete ${t.merchant} (${fmt(t.amount)})?`)) return; await deleteTransaction(t.id); router.refresh(); }}
+                      style={{ minHeight: "32px", padding: "0 8px", background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+                      Delete
+                    </button>
                   </div>
                   {looksLikePay && (
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--amber)" }}>
