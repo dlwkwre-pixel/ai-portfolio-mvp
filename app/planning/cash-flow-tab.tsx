@@ -1205,7 +1205,7 @@ export default function CashFlowOS({
   // paychecks assigned to an income source replace that source's expected amount, unassigned
   // income (a Marketplace sale) is added on top. See computeMonthIncome for the rules.
   const incomeSources = useMemo(
-    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency) })),
+    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency), frequency: i.frequency, perCheck: i.amount })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cashFlowItems],
   );
@@ -1784,9 +1784,11 @@ export default function CashFlowOS({
               ? selIncome.extraCount > 0
                 ? `Using expected pay for ${MONTH_NAMES[selMonth - 1]} (no paychecks recorded).`
                 : `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
-              : selIncome.status === "in-progress" && selIncome.recordedRegular < selIncome.regular
-                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}). Counting the expected amount until the month's pay is in.`
-                : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}), used in place of expected pay.`}
+              : selIncome.status === "in-progress" && selIncome.upcomingCount > 0
+                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}), plus ${selIncome.upcomingCount} more expected before ${MONTH_NAMES[selMonth - 1]} ends (about ${ph(fmt(selIncome.upcomingRegular))}, based on your plan).`
+                : selIncome.status === "in-progress" && selIncome.regular > selIncome.recordedRegular + 0.5
+                  ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). Expected pay is still used for income lines with nothing recorded yet.`
+                  : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). That's this month's income, used in place of expected pay.`}
             {selIncome.extraCount > 0 && ` Plus ${ph(fmt(selIncome.extras))} extra, one-time income.`}
             {selIncome.status === "recorded" && selIncome.total - effectiveIncome >= 1 &&
               ` That's ${ph(fmt(selIncome.total - effectiveIncome))} more than your plan, a good amount to put toward a goal.`}

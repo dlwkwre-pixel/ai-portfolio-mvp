@@ -475,7 +475,9 @@ export function rollupTransactionActuals(txns: CashFlowTransaction[]): TxnActual
 
 // ── Month income: expected vs recorded ──────────────────────────────────────
 
-export type IncomeSource = { id: string; label: string; planMonthly: number };
+// frequency + perCheck (the line's amount per payment) let the current month project the
+// paychecks still to come instead of assuming the full expected amount.
+export type IncomeSource = { id: string; label: string; planMonthly: number; frequency?: string; perCheck?: number };
 
 export type MonthIncome = {
   total: number;          // what the month's math should use
@@ -485,6 +487,8 @@ export type MonthIncome = {
   extraCount: number;
   recordedRegular: number; // sum of income assigned to sources this month
   recordedCount: number;
+  upcomingRegular: number;  // current month: paychecks still expected before month end
+  upcomingCount: number;
   status: "expected" | "in-progress" | "recorded";
 };
 
@@ -527,6 +531,26 @@ export function computeMonthIncome(p: {
   const isPast = period < nowPeriod;
   const isCurrent = period === nowPeriod;
 
+  // Current month, a source with paychecks already in: what's recorded PLUS the paychecks
+  // still due before month end for its schedule — never "the bigger of recorded or
+  // expected", which ignored a smaller-than-usual paycheck (variable pay) and kept saying
+  // it was waiting for pay that wasn't coming.
+  const monthEnd = new Date(p.year, p.month, 0);
+  let upcomingRegular = 0, upcomingCount = 0;
+  const remainingChecks = (src: IncomeSource): number => {
+    const mine = inMonth.filter((t) => t.cash_flow_item_id === src.id).sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+    const freq = src.frequency ?? "monthly";
+    if (freq === "weekly" || freq === "biweekly") {
+      const step = freq === "weekly" ? 7 : 14;
+      const last = new Date(`${mine[mine.length - 1].txn_date}T12:00:00`);
+      let n = 0;
+      for (let d = new Date(last.getTime() + step * 86_400_000); d <= monthEnd; d = new Date(d.getTime() + step * 86_400_000)) n++;
+      return n;
+    }
+    if (freq === "semimonthly") return Math.max(0, 2 - mine.length);
+    return 0; // monthly (or less often): the month's pay is in
+  };
+
   let regular: number;
   if (period > nowPeriod) {
     regular = p.expectedTotal;
@@ -535,7 +559,12 @@ export function computeMonthIncome(p: {
       const expectedShare = src.planMonthly * ratio;
       const rec = recordedBy.get(src.id);
       if (rec === undefined) return s + expectedShare;
-      return s + (isCurrent ? Math.max(rec, expectedShare) : rec);
+      if (!isCurrent) return s + rec;
+      const n = remainingChecks(src);
+      const perCheck = (src.perCheck ?? src.planMonthly) * ratio;
+      upcomingCount += n;
+      upcomingRegular += n * perCheck;
+      return s + rec + n * perCheck;
     }, 0);
   } else {
     regular = recordedRegular > 0
@@ -551,6 +580,8 @@ export function computeMonthIncome(p: {
     extraCount: extrasList.length,
     recordedRegular,
     recordedCount,
+    upcomingRegular,
+    upcomingCount,
     status: recordedCount === 0 ? "expected" : isPast ? "recorded" : "in-progress",
   };
 }
