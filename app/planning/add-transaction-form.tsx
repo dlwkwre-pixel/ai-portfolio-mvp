@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CashFlowItem } from "./planning-actions";
 import { addManualTransaction } from "./planning-actions";
 import { NEW_EXPENSE_BUCKET_PREFIX, NEW_PAYCHECK_BUCKET } from "@/lib/planning/transactions";
+import { likelyPaycheckSource } from "@/lib/planning/pay-schedule";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { Button } from "@/app/components/ui-primitives";
 import { MONTH_NAMES } from "./planning-shared";
@@ -57,6 +58,9 @@ export default function AddTransactionForm({
   const [incomeBucket, setIncomeBucket] = useState<string>(EXTRA);
   const [expenseBucket, setExpenseBucket] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  // Set when "Extra" income looks like a paycheck — ask before it gets counted on top of
+  // expected pay (the easy way to count the same paycheck twice).
+  const [askPaycheck, setAskPaycheck] = useState<CashFlowItem | null>(null);
 
   const missingCategories = useMemo(() => {
     const have = new Set(expenseItems.map((i) => categoryOf(i)));
@@ -70,9 +74,15 @@ export default function AddTransactionForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const bucket = kind === "income"
-      ? (incomeBucket === EXTRA ? null : incomeBucket)
-      : (expenseBucket || null);
+    if (kind === "income" && incomeBucket === EXTRA) {
+      const match = likelyPaycheckSource(Number(amount), merchant, incomeItems);
+      if (match) { setAskPaycheck(incomeItems.find((i) => i.id === match.id) ?? null); return; }
+    }
+    save(kind === "income" ? (incomeBucket === EXTRA ? null : incomeBucket) : (expenseBucket || null));
+  }
+
+  function save(bucket: string | null) {
+    setAskPaycheck(null);
     startTransition(async () => {
       const res = await addManualTransaction({ date, merchant, amount: Number(amount), kind, bucket });
       if (res.error) { setError(res.error); return; }
@@ -159,10 +169,25 @@ export default function AddTransactionForm({
 
       {error && <div role="alert" style={{ fontSize: "var(--text-xs)", color: "var(--red)", fontFamily: "var(--font-body)" }}>{error}</div>}
 
-      <div style={{ display: "flex", gap: "8px" }}>
-        <Button type="submit" variant="primary" size="sm" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
-        <Button size="sm" onClick={onDone}>Cancel</Button>
-      </div>
+      {askPaycheck ? (
+        <div role="alertdialog" aria-label="Is this your paycheck?" style={{ border: "1px solid var(--amber)", borderRadius: "var(--radius-md)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+            {`Is this your paycheck from ${askPaycheck.label}?`}
+          </div>
+          <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+            {`A paycheck replaces the expected pay for ${askPaycheck.label}, so it isn't counted twice. Extra income (like selling something) is added on top.`}
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <Button variant="primary" size="sm" disabled={pending} onClick={() => save(askPaycheck.id)}>Yes, it&apos;s my paycheck</Button>
+            <Button size="sm" disabled={pending} onClick={() => save(null)}>No, it&apos;s extra</Button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Button type="submit" variant="primary" size="sm" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
+          <Button size="sm" onClick={onDone}>Cancel</Button>
+        </div>
+      )}
     </form>
   );
 }

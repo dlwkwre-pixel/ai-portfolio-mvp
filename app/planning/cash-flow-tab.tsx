@@ -23,6 +23,7 @@ import RecurringChargesCard from "./recurring-charges-card";
 import UnusualChargesCard from "./unusual-charges-card";
 import { findUnusualCharges } from "@/lib/planning/unusual-charges";
 import LeftoverPlan from "./leftover-plan";
+import IncomePlanNote from "./income-plan-note";
 import type { RatedAccount } from "@/lib/planning/money-priorities";
 import StickyMonthBar from "./sticky-month-bar";
 import { billPlanForMonth } from "@/lib/planning/frequency";
@@ -1790,6 +1791,7 @@ export default function CashFlowOS({
             {selIncome.status === "recorded" && selIncome.total - effectiveIncome >= 1 &&
               ` That's ${ph(fmt(selIncome.total - effectiveIncome))} more than your plan, a good amount to put toward a goal.`}
           </p>
+          <IncomePlanNote incomeItems={incomeItems} transactions={transactions} k401EmployeeMonthly={k401EmployeeMonthly ?? 0} isPrivate={isPrivate} />
           {selIncomeTxns.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
               {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
