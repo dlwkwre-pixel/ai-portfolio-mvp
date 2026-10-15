@@ -582,6 +582,10 @@ export type RecurringCharge = {
   previousDate: string | null;
   months: number;           // distinct months seen
   increase: number;         // latest − previous when it went up by ≥ $1 and ≥ 2%, else 0
+  decrease: number;         // previous − latest when it went down by ≥ $1 and ≥ 2%, else 0
+  since: string;            // first charge seen (whole loaded history, not just the window)
+  stale: boolean;           // no charge in 45+ days — may have been cancelled
+  yearly: number;           // latest price × 12
   bucketId: string | null;  // bucket of the latest charge
   lastDate: string;
 };
@@ -591,13 +595,37 @@ export type RecurringCharge = {
 // regular coffee shop or gas station — visited often, at a different amount each time.
 // Restaurants/groceries never count; transportation only when the charge is exact (a
 // membership fee, not a fill-up).
+// Charges at a steady price, allowing ONE price change (an increase or a cut): every charge
+// before the change sits within `tolerance` of that era's median, and every charge after it
+// within tolerance of the new median. Without this, a $15.49 → $17.99 increase — exactly
+// the thing worth flagging — knocked the subscription off the list entirely.
+function steadyWithOneStep(amounts: number[], tolerance: number): boolean {
+  const steady = (xs: number[]) => {
+    if (xs.length === 0) return true;
+    const sorted = xs.slice().sort((a, b) => a - b);
+    const m = Math.floor(sorted.length / 2);
+    const med = sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+    return xs.every((x) => Math.abs(x - med) <= med * tolerance);
+  };
+  if (steady(amounts)) return true;
+  for (let s = 1; s < amounts.length; s++) {
+    if (steady(amounts.slice(0, s)) && steady(amounts.slice(s))) return true;
+  }
+  return false;
+}
+
 export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): RecurringCharge[] {
   const cutoff = new Date(today.getFullYear(), today.getMonth() - 6, 1).toISOString().slice(0, 10);
+  const staleBefore = new Date(today.getTime() - 45 * 86_400_000).toISOString().slice(0, 10);
   const groups = new Map<string, CashFlowTransaction[]>();
+  const firstSeen = new Map<string, string>();
   for (const t of txns) {
-    if (t.direction !== "out" || t.amount <= 0 || t.txn_date < cutoff) continue;
+    if (t.direction !== "out" || t.amount <= 0) continue;
     const k = merchantKey(t.merchant);
     if (!k) continue;
+    const first = firstSeen.get(k);
+    if (!first || t.txn_date < first) firstSeen.set(k, t.txn_date);
+    if (t.txn_date < cutoff) continue;
     const list = groups.get(k) ?? [];
     list.push(t);
     groups.set(k, list);
@@ -620,7 +648,7 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
     const mid = Math.floor(amounts.length / 2);
     const typical = amounts.length % 2 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2;
     const tolerance = category === "Transportation" ? 0.01 : 0.05;
-    if (monthly.some((t) => Math.abs(t.amount - typical) > typical * tolerance)) continue;
+    if (!steadyWithOneStep(monthly.map((t) => t.amount), tolerance)) continue;
     const latest = monthly[monthly.length - 1];
     // Compare against the last charge at a different price, so "$15.49, $15.49, $17.99,
     // $17.99" still reports the increase instead of comparing the two $17.99s.
@@ -630,10 +658,15 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
       key, merchant: latest.merchant, typical: Math.round(typical * 100) / 100,
       latest: latest.amount, previous: prev?.amount ?? null, previousDate: prev?.txn_date ?? null, months: byMonth.size,
       increase: prev && diff >= 1 && diff >= prev.amount * 0.02 ? Math.round(diff * 100) / 100 : 0,
+      decrease: prev && -diff >= 1 && -diff >= prev.amount * 0.02 ? Math.round(-diff * 100) / 100 : 0,
+      since: firstSeen.get(key) ?? monthly[0].txn_date,
+      stale: latest.txn_date < staleBefore,
+      yearly: Math.round(latest.amount * 12 * 100) / 100,
       bucketId: latest.cash_flow_item_id, lastDate: latest.txn_date,
     });
   }
-  return out.sort((a, b) => b.increase - a.increase || b.typical - a.typical);
+  // Active ones first (increases on top), then the ones that may have stopped.
+  return out.sort((a, b) => Number(a.stale) - Number(b.stale) || b.increase - a.increase || b.typical - a.typical);
 }
 
 // ── Variable income ─────────────────────────────────────────────────────────
