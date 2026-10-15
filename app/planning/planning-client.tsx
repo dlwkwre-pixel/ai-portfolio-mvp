@@ -3091,6 +3091,7 @@ type Props = {
   transactions: CashFlowTransaction[];
   monthCloses: MonthCloseRow[];
   bankLink: BankLinkInfo | null;
+  dismissedAlerts?: string[];
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
   initialTab?: string;
@@ -3113,7 +3114,7 @@ const ATLAS_THINKING = [
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, dismissedAlerts = [], budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -6203,6 +6204,7 @@ export default function PlanningClient({
             transactions={transactions}
             monthCloses={monthCloses}
             bankLink={bankLink}
+            dismissedAlerts={dismissedAlerts}
             netWorthHistory={netWorthHistory}
             budgetHistory={budgetHistory}
             effectiveIncome={effectiveIncome}

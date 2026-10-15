@@ -20,6 +20,8 @@ import { computeMonthIncome, findRecurringCharges, recordedIncomeByMonth, type C
 import UnrecordedBills, { type UnrecordedLine } from "./unrecorded-bills";
 import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
+import UnusualChargesCard from "./unusual-charges-card";
+import { findUnusualCharges } from "@/lib/planning/unusual-charges";
 import StickyMonthBar from "./sticky-month-bar";
 import { billPlanForMonth } from "@/lib/planning/frequency";
 import BillScheduleEditor from "./bill-schedule-editor";
@@ -1065,7 +1067,7 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
@@ -1073,6 +1075,7 @@ export default function CashFlowOS({
   transactions?: CashFlowTransaction[];
   monthCloses?: MonthCloseRow[];
   bankLink?: BankLinkInfo | null;
+  dismissedAlerts?: string[];
   netWorthHistory?: NetWorthSnapshot[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
@@ -1240,6 +1243,11 @@ export default function CashFlowOS({
   const selUnrecorded = selPeriod <= nowPeriod ? unrecordedLinesFor(selYear, selMonth) : [];
   const selSaved = savedFor(selYear, selMonth);
   const selBlend = sumBlendedExpenses(selPeriod, selPeriod);
+  const unusualCharges = useMemo(() => {
+    const ok = new Set(dismissedAlerts);
+    return findUnusualCharges(transactions, now).filter((a) => !ok.has(a.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, dismissedAlerts]);
   const recurringCharges = useMemo(
     () => findRecurringCharges(transactions, now),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1823,6 +1831,7 @@ export default function CashFlowOS({
           </span>
         </div>
         {bankLink && <BankSyncNote info={bankLink} />}
+        <UnusualChargesCard alerts={unusualCharges} isPrivate={isPrivate} />
         {showImport && (
           <div style={{ marginBottom: "14px" }}>
             <TransactionImportPanel expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate}

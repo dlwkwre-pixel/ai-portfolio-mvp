@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { kvGet, kvSet } from "@/lib/kv";
 
 // Firecrawl: reads a web page and returns its main content as markdown. Server-only.
 //
@@ -21,22 +21,6 @@ export function firecrawlConfigured(): boolean {
   return !!process.env.FIRECRAWL_API_KEY;
 }
 
-async function kvGet<T>(key: string): Promise<T | null> {
-  try {
-    const { data } = await createAdminClient().from("chart_cache").select("result").eq("cache_key", key).maybeSingle();
-    return (data?.result as T) ?? null;
-  } catch { return null; }
-}
-
-async function kvSet(key: string, result: unknown, ttlMs: number): Promise<void> {
-  try {
-    await createAdminClient().from("chart_cache").upsert({
-      cache_key: key, result,
-      expires_at: new Date(Date.now() + ttlMs).toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "cache_key" });
-  } catch { /* non-fatal */ }
-}
 
 function usageKey(): string {
   const d = new Date();

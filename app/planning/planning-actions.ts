@@ -8,6 +8,7 @@ import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/t
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 import { isValidFrequency, frequencyForInterval, type BillMode } from "@/lib/planning/frequency";
 import { dismissPlaidTransaction } from "@/lib/connections/plaid";
+import { kvAddIds } from "@/lib/kv";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1626,4 +1627,15 @@ export async function deleteImportBatch(batchId: string): Promise<{ error?: stri
   if (error) return { error: error.message };
   revalidatePath("/planning");
   return { deleted: (data ?? []).length };
+}
+
+// "Looks fine" on an unusual-charge alert: remembered per user so it never comes back.
+// Ids look like "duplicate:<txn id>"; nothing about the transaction itself changes.
+export async function dismissUnusualCharges(ids: string[]): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const clean = ids.filter((id) => typeof id === "string" && /^(duplicate|spike|new_big):[\w-]{1,64}$/.test(id)).slice(0, 100);
+  if (clean.length > 0) await kvAddIds(`unusualok:${user.id}`, clean);
+  return {};
 }

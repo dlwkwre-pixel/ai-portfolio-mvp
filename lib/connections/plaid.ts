@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncPlaidIntoCashFlow, type FoundTransfer } from "./plaid-cash-flow";
 import { needsReconnect } from "./plaid-errors";
+import { kvGet, kvSet } from "@/lib/kv";
 import { findDuplicateAccounts } from "./account-dedupe";
 
 // Plaid bank connections (balances-first, read-only). Server-only: the access token
@@ -119,24 +120,6 @@ type PlaidTxn = {
   pending?: boolean;
 };
 
-async function kvGet<T>(key: string): Promise<T | null> {
-  try {
-    const admin = createAdminClient();
-    const { data } = await admin.from("chart_cache").select("result").eq("cache_key", key).maybeSingle();
-    return (data?.result as T) ?? null;
-  } catch { return null; }
-}
-
-async function kvSet(key: string, result: unknown): Promise<void> {
-  try {
-    const admin = createAdminClient();
-    await admin.from("chart_cache").upsert({
-      cache_key: key, result,
-      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "cache_key" });
-  } catch { /* non-fatal */ }
-}
 
 // Plaid's /transactions/sync status: NOT_READY right after linking (history still being
 // pulled from the bank — can take minutes), then INITIAL_UPDATE_COMPLETE (~30 days),

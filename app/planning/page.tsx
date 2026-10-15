@@ -9,6 +9,7 @@ import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { ageFromDob } from "./planning-utils";
 import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
+import { kvGetIds } from "@/lib/kv";
 import { rollupTransactionActuals, type CashFlowTransaction } from "@/lib/planning/transactions";
 import type { MonthCloseRow } from "./month-close-card";
 import type { BankLinkInfo } from "./bank-sync-note";
@@ -199,6 +200,7 @@ export default async function PlanningPage({
     { data: netWorthHistoryRows },
     historicalValues,
     bankLink,
+    dismissedAlerts,
   ] = await Promise.all([
     valuePortfolios(supabase, (portfolios ?? []) as PortfolioRow[]),
     // Connected + manual bank balances join the sheet as read-only "linked:" items —
@@ -212,6 +214,7 @@ export default async function PlanningPage({
       .limit(180),
     loadMonthAgoValues(supabase, typedBalanceItems.map((i) => i.id), (portfolios ?? []).map((p) => p.id)),
     loadBankLink(user.id),
+    kvGetIds(`unusualok:${user.id}`),
   ]);
 
 
@@ -460,6 +463,7 @@ export default async function PlanningPage({
           balanceItems={mergedBalanceItems}
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
+          dismissedAlerts={dismissedAlerts}
           historicalValues={historicalValues}
           portfolioTotalValue={portfolioTotalValue}
           portfolioAccounts={portfolioAccounts}
