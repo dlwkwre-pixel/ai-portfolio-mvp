@@ -24,6 +24,7 @@ import UnusualChargesCard from "./unusual-charges-card";
 import { findUnusualCharges } from "@/lib/planning/unusual-charges";
 import LeftoverPlan from "./leftover-plan";
 import IncomePlanNote from "./income-plan-note";
+import { likelyPaycheckSource } from "@/lib/planning/pay-schedule";
 import type { RatedAccount } from "@/lib/planning/money-priorities";
 import StickyMonthBar from "./sticky-month-bar";
 import { billPlanForMonth } from "@/lib/planning/frequency";
@@ -32,7 +33,7 @@ import PaceGuide, { type PaceData } from "./pace-guide";
 import MoneyStory from "./money-story";
 import BankSyncNote, { type BankLinkInfo } from "./bank-sync-note";
 import AddTransactionForm from "./add-transaction-form";
-import { deleteImportBatch } from "./planning-actions";
+import { deleteImportBatch, updateTransactionBucket } from "./planning-actions";
 import TransactionImportPanel, { type ImportSavedSummary } from "./transaction-import-panel";
 import MonthTransactions from "./month-transactions";
 
@@ -1798,14 +1799,28 @@ export default function CashFlowOS({
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
               {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
                 const src = t.cash_flow_item_id ? incomeItems.find(i => i.id === t.cash_flow_item_id) : null;
+                // A paycheck saved as "extra" is counted ON TOP of expected pay — offer the fix.
+                const looksLikePay = !src ? likelyPaycheckSource(t.amount, t.merchant, incomeItems) : null;
                 return (
-                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)", padding: "3px 0" }}>
+                  <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "3px 0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)" }}>
                     <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
                       {"  "}{t.merchant}
                       <span style={{ color: "var(--text-muted)" }}> · {src ? `pay from ${src.label}` : "extra"}</span>
                     </span>
                     <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", whiteSpace: "nowrap" }}>+{ph(fmt(t.amount))}</span>
+                  </div>
+                  {looksLikePay && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--amber)" }}>
+                      <span>{`Is this your ${looksLikePay.label} paycheck? As "extra" it's counted on top of your expected pay.`}</span>
+                      <button type="button"
+                        onClick={async () => { await updateTransactionBucket(t.id, looksLikePay.id, false); router.refresh(); }}
+                        style={{ minHeight: "32px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-default)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
+                        {`Yes, it's my ${looksLikePay.label} pay`}
+                      </button>
+                    </div>
+                  )}
                   </div>
                 );
               })}

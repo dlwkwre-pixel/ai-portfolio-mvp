@@ -545,7 +545,11 @@ export function computeMonthIncome(p: {
       const last = new Date(`${mine[mine.length - 1].txn_date}T12:00:00`);
       let n = 0;
       for (let d = new Date(last.getTime() + step * 86_400_000); d <= monthEnd; d = new Date(d.getTime() + step * 86_400_000)) n++;
-      return n;
+      // Never plan on a 3rd biweekly (or 5th weekly) check: budget on the usual count and
+      // let the bonus paycheck count once it's actually recorded. Also guards against a
+      // paycheck entered with an early date projecting extra checks.
+      const usual = freq === "weekly" ? 4 : 2;
+      return Math.min(n, Math.max(0, usual - mine.length));
     }
     if (freq === "semimonthly") return Math.max(0, 2 - mine.length);
     return 0; // monthly (or less often): the month's pay is in
