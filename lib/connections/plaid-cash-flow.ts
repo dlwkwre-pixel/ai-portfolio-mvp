@@ -82,8 +82,11 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   const admin = createAdminClient();
 
   if (removedIds.length > 0) {
-    await admin.from("cash_flow_transactions").delete()
-      .eq("user_id", userId).eq("source", "plaid").in("external_id", removedIds);
+    const withSynthetic = removedIds.flatMap((id) => [id, `tosavings:${id}`, `fromsavings:${id}`]);
+    for (let i = 0; i < withSynthetic.length; i += 200) {
+      await admin.from("cash_flow_transactions").delete()
+        .eq("user_id", userId).eq("source", "plaid").in("external_id", withSynthetic.slice(i, i + 200));
+    }
   }
 
   const [{ data: accts }, { data: conns }, dismissed] = await Promise.all([
@@ -133,6 +136,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   const classified = new Map(posted.map((t) => [t.id, classifyBankTransaction(t)]));
   const MOVE_RE = /zelle|transfer|xfer|venmo|cash\s*app|ach|deposit|payment (from|to)|online/i;
   const usedOut = new Set<string>();
+  const destOf = new Map<string, string>(); // paired outflow id → account the money landed in
   const pairedInflows: BankTransaction[] = [];
   const dayDiff = (a: string, b: string) => Math.abs(new Date(`${a}T00:00:00Z`).getTime() - new Date(`${b}T00:00:00Z`).getTime()) / 86_400_000;
   for (const inflow of posted) {
@@ -143,11 +147,55 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       && (["save", "transfer"].includes(classified.get(o.id)!.kind) || MOVE_RE.test(`${o.merchant ?? ""} ${o.name}`)));
     if (!outflow) continue;
     usedOut.add(outflow.id);
+    destOf.set(outflow.id, inflow.accountId);
     classified.set(inflow.id, { kind: "transfer" });
     pairedInflows.push(inflow);
     const destination = subtypeOf.get(inflow.accountId) ?? "";
     if (classified.get(outflow.id)!.kind === "spend") {
       classified.set(outflow.id, { kind: /saving|money market|cd|investment|brokerage|ira/i.test(destination) ? "save" : "transfer" });
+    }
+  }
+
+  // ── Net savings ──────────────────────────────────────────────────────────────
+  // "Saved" should be money that ENTERED savings/investing minus money that LEFT it for
+  // spending, not every move that touches a savings account:
+  //  - savings → brokerage/another savings: already-saved money changing buckets → neutral
+  //    (counting it as a save double counted it: "To Brokerage" from Robinhood savings)
+  //  - savings → checking (or any transfer out): money coming back out → negative save
+  //  - spending straight from savings (rent paid from savings): stays spending, plus a
+  //    negative save row so "saved" isn't overstated
+  //  - income landing in savings (paycheck split to savings, interest): stays income, plus a
+  //    positive save row — it was saved without passing through checking
+  // Checking → savings stays a save, as before. Brokerage accounts themselves are skipped.
+  const SAVINGS_SUBTYPE = /saving|money market|\bcd\b|hsa|cash management/i;
+  const acctById = new Map((accts ?? []).map((a) => [a.account_id as string, a]));
+  const isSavingsAcct = (id: string) => {
+    const a = acctById.get(id);
+    return !!a && a.type === "depository" && SAVINGS_SUBTYPE.test(String(a.subtype ?? ""));
+  };
+  const negativeSave = new Set<string>();
+  const synthetic: { id: string; t: BankTransaction; amount: number; merchant: string }[] = [];
+  for (const t of posted) {
+    if (!isSavingsAcct(t.accountId)) continue;
+    const c = classified.get(t.id)!;
+    const label = (t.merchant || cleanMerchant(t.name)).slice(0, 40);
+    if (t.amount > 0) { // money out of savings
+      // Where it went: the matched inflow's account when we paired it, else Plaid's category
+      // or the description (not the bare word "savings" — "Transfer from Savings" names the source).
+      const dest = destOf.get(t.id);
+      const toSavingsOrInvesting = dest
+        ? isSavingsAcct(dest) || acctById.get(dest)?.type === "investment"
+        : SAVE_DETAILED.has(t.detailed ?? "") || /brokerage|invest|\bira\b|roth/i.test(`${t.merchant ?? ""} ${t.name}`);
+      if (c.kind === "save" || (c.kind === "transfer" && toSavingsOrInvesting)) {
+        classified.set(t.id, { kind: "transfer" });
+      } else if (c.kind === "transfer") {
+        classified.set(t.id, { kind: "save" });
+        negativeSave.add(t.id);
+      } else if (c.kind === "spend") {
+        synthetic.push({ id: `fromsavings:${t.id}`, t, amount: -Math.abs(t.amount), merchant: `Paid from savings: ${label}` });
+      }
+    } else if (c.kind === "income") { // money landing in savings from outside
+      synthetic.push({ id: `tosavings:${t.id}`, t, amount: Math.abs(t.amount), merchant: `Went straight to savings: ${label}` });
     }
   }
 
@@ -169,7 +217,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
         await admin.from("cash_flow_transactions").delete().eq("id", have.id).eq("user_id", userId);
         continue;
       }
-      const signed = kind === "refund" ? -amount : amount;
+      const signed = kind === "refund" || negativeSave.has(t.id) ? -amount : amount;
       const direction = kind === "income" ? "in" : kind === "save" ? "save" : "out";
       if (have.txn_date !== t.date || Math.abs(have.amount - signed) >= 0.005 || have.direction !== direction) {
         await admin.from("cash_flow_transactions")
@@ -186,7 +234,33 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     const merchant = (t.merchant || cleanMerchant(t.name)).slice(0, 60);
     candidates.push({ t, parsed: { date: t.date, description: t.name.slice(0, 200), merchant, amount, kind, category } });
   }
-  if (candidates.length === 0) return { inserted: 0, transfers };
+  // Synthetic savings rows (see Net savings above): create/update by their own external id,
+  // and drop ones whose underlying transaction no longer qualifies.
+  const now = new Date().toISOString();
+  const syntheticRecords: Record<string, unknown>[] = [];
+  const wanted = new Set(synthetic.map((s) => s.id));
+  for (const s of synthetic) {
+    const have = byExternal.get(s.id);
+    if (have) {
+      if (have.txn_date !== s.t.date || Math.abs(have.amount - s.amount) >= 0.005) {
+        await admin.from("cash_flow_transactions")
+          .update({ txn_date: s.t.date, period_year: Number(s.t.date.slice(0, 4)), period_month: Number(s.t.date.slice(5, 7)), amount: s.amount, updated_at: now })
+          .eq("id", have.id).eq("user_id", userId);
+      }
+      continue;
+    }
+    syntheticRecords.push({
+      user_id: userId, txn_date: s.t.date, period_year: Number(s.t.date.slice(0, 4)), period_month: Number(s.t.date.slice(5, 7)),
+      description: s.merchant, merchant: s.merchant.slice(0, 60), amount: s.amount, direction: "save",
+      cash_flow_item_id: null, source: "plaid", external_id: s.id, reviewed_at: now,
+    });
+  }
+  const postedIds = new Set(posted.map((t) => t.id));
+  const stale = existing.filter((r) => r.external_id && /^(tosavings|fromsavings):/.test(r.external_id)
+    && postedIds.has(r.external_id.split(":")[1]) && !wanted.has(r.external_id)).map((r) => r.id);
+  if (stale.length > 0) await admin.from("cash_flow_transactions").delete().eq("user_id", userId).in("id", stale);
+
+  if (candidates.length === 0 && syntheticRecords.length === 0) return { inserted: 0, transfers };
 
   // Same transaction already imported from a statement / typed in → skip it.
   const dupIdx = new Set(findDuplicates(candidates.map((c) => c.parsed), others).map((d) => d.index));
@@ -213,7 +287,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       period_month: Number(parsed.date.slice(5, 7)),
       description: parsed.description || parsed.merchant,
       merchant: parsed.merchant || "Transaction",
-      amount: parsed.kind === "refund" ? -parsed.amount : parsed.amount,
+      amount: parsed.kind === "refund" || negativeSave.has(t.id) ? -parsed.amount : parsed.amount,
       direction: parsed.kind === "income" ? "in" : parsed.kind === "save" ? "save" : "out",
       cash_flow_item_id: bucket && !bucket.startsWith("new") ? bucket : null,
       source: "plaid",
@@ -224,6 +298,7 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   // Plain inserts — rows already present were filtered out above (byExternal), so this
   // doesn't depend on ON CONFLICT matching a particular index shape. If a concurrent sync
   // got there first, the unique index rejects the chunk; retry row by row and skip those.
+  records.push(...syntheticRecords);
   let inserted = 0;
   for (let i = 0; i < records.length; i += 200) {
     const chunk = records.slice(i, i + 200);
