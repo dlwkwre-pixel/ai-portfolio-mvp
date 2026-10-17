@@ -497,7 +497,9 @@ export function payEvents(deposits: { txn_date: string; amount: number }[]): { d
   return events;
 }
 
-export type IncomeSource = { id: string; label: string; planMonthly: number; frequency?: string; perCheck?: number };
+// recentPerCheck: the typical NET paycheck from recent pay events (already after 401(k) and
+// taxes, so it's used as-is) — a better estimate for a paycheck still due than the plan.
+export type IncomeSource = { id: string; label: string; planMonthly: number; frequency?: string; perCheck?: number; recentPerCheck?: number };
 
 export type MonthIncome = {
   total: number;          // what the month's math should use
@@ -592,7 +594,7 @@ export function computeMonthIncome(p: {
       if (rec === undefined) return s + expectedShare;
       if (!isCurrent) return s + rec;
       const n = remainingChecks(src);
-      const perCheck = (src.perCheck ?? src.planMonthly) * ratio;
+      const perCheck = src.recentPerCheck ?? (src.perCheck ?? src.planMonthly) * ratio;
       upcomingCount += n;
       upcomingRegular += n * perCheck;
       return s + rec + n * perCheck;
@@ -734,6 +736,17 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
 // ── Variable income ─────────────────────────────────────────────────────────
 
 // Recorded pay per COMPLETED month for one income source, newest first.
+// Typical net paycheck for a source: median of its last 3 pay events (split deposits merged)
+// in the past ~100 days, excluding the current month's still-incomplete picture is not
+// needed — a single paycheck is complete once it lands. Null without at least 2 events.
+export function recentPaycheck(txns: CashFlowTransaction[], sourceId: string, today: Date): number | null {
+  const since = new Date(today.getTime() - 100 * 86_400_000).toISOString().slice(0, 10);
+  const events = payEvents(txns.filter((t) => t.direction === "in" && t.cash_flow_item_id === sourceId && t.txn_date >= since && t.amount > 0));
+  if (events.length < 2) return null;
+  const last = events.slice(-3).map((e) => e.amount).sort((a, b) => a - b);
+  return Math.round(last[Math.floor(last.length / 2)] * 100) / 100;
+}
+
 export function recordedIncomeByMonth(txns: CashFlowTransaction[], sourceId: string, today: Date): number[] {
   const nowKey = today.getFullYear() * 12 + today.getMonth();
   // The month history starts in is usually partial (a bank link brings ~90 days, so it

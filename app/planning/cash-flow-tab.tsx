@@ -16,7 +16,7 @@ import {
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
 } from "./planning-shared";
 import { computeAvailableToInvest, nextOccurrenceOnOrAfter, toDateOnly } from "@/lib/planning/cash-flow-forecast";
-import { computeMonthIncome, findRecurringCharges, recordedIncomeByMonth, type CashFlowTransaction } from "@/lib/planning/transactions";
+import { computeMonthIncome, findRecurringCharges, recentPaycheck, recordedIncomeByMonth, type CashFlowTransaction } from "@/lib/planning/transactions";
 import UnrecordedBills, { type UnrecordedLine } from "./unrecorded-bills";
 import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
@@ -1206,9 +1206,9 @@ export default function CashFlowOS({
   // paychecks assigned to an income source replace that source's expected amount, unassigned
   // income (a Marketplace sale) is added on top. See computeMonthIncome for the rules.
   const incomeSources = useMemo(
-    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency), frequency: i.frequency, perCheck: i.amount })),
+    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency), frequency: i.frequency, perCheck: i.amount, recentPerCheck: recentPaycheck(transactions, i.id, now) ?? undefined })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cashFlowItems],
+    [cashFlowItems, transactions],
   );
   function incomeFor(y: number, m: number) {
     return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: effectiveIncome, transactions });
@@ -1823,7 +1823,7 @@ export default function CashFlowOS({
                 ? `Using expected pay for ${MONTH_NAMES[selMonth - 1]} (no paychecks recorded).`
                 : `Using expected income for ${MONTH_NAMES[selMonth - 1]}. Record paychecks or extra income below to use real numbers.`
               : selIncome.status === "in-progress" && selIncome.upcomingCount > 0
-                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}), plus ${selIncome.upcomingCount} more expected before ${MONTH_NAMES[selMonth - 1]} ends (about ${ph(fmt(selIncome.upcomingRegular))}, based on your plan).`
+                ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded so far (${ph(fmt(selIncome.recordedRegular))}), plus ${selIncome.upcomingCount} more expected before ${MONTH_NAMES[selMonth - 1]} ends (about ${ph(fmt(selIncome.upcomingRegular))}, ${incomeSources.some((s) => s.recentPerCheck) ? "based on your recent paychecks" : "based on your plan"}).`
                 : selIncome.status === "in-progress" && selIncome.regular > selIncome.recordedRegular + 0.5
                   ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). Expected pay is still used for income lines with nothing recorded yet.`
                   : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). That's this month's income, used in place of expected pay.`}
