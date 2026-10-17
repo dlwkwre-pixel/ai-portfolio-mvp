@@ -75,6 +75,8 @@ export function cleanMerchant(description: string): string {
   // Two passes: prefixes nest ("PURCHASE AUTHORIZED ON 10/02 SQ *JOES PIZZA").
   for (let pass = 0; pass < 2; pass++) for (const re of MERCHANT_NOISE) s = s.replace(re, "");
   s = s
+    .replace(/^\d{3,}\s+/, "")                       // leading reference number ("58715 HILLTOP RE PAYROLL")
+    .replace(/\s+ppd\b.*$/i, "")                     // ACH trailer ("PPD ID: 123")
     .replace(/\s+#?\d{3,}.*$/, "")                  // store numbers / reference ids and everything after
     .replace(/\s+[A-Z]{2}\s*\d{0,5}$/, "")          // trailing state code / zip ("OAKLAND CA 94612")
     .replace(/[*#]+/g, " ")
@@ -477,6 +479,24 @@ export function rollupTransactionActuals(txns: CashFlowTransaction[]): TxnActual
 
 // frequency + perCheck (the line's amount per payment) let the current month project the
 // paychecks still to come instead of assuming the full expected amount.
+// One paycheck can land as several deposits a day or two apart (a split direct deposit:
+// $1,773 to checking + $500 to savings). Group a source's deposits within 3 days into one
+// pay event so they count as ONE paycheck everywhere schedules are reasoned about.
+export function payEvents(deposits: { txn_date: string; amount: number }[]): { date: string; amount: number; deposits: number }[] {
+  const sorted = deposits.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+  const events: { date: string; amount: number; deposits: number }[] = [];
+  for (const d of sorted) {
+    const last = events[events.length - 1];
+    if (last && (Date.parse(d.txn_date) - Date.parse(last.date)) / 86_400_000 <= 3) {
+      last.amount += d.amount;
+      last.deposits += 1;
+    } else {
+      events.push({ date: d.txn_date, amount: d.amount, deposits: 1 });
+    }
+  }
+  return events;
+}
+
 export type IncomeSource = { id: string; label: string; planMonthly: number; frequency?: string; perCheck?: number };
 
 export type MonthIncome = {
@@ -524,7 +544,13 @@ export function computeMonthIncome(p: {
     }
   }
   const recordedRegular = Array.from(recordedBy.values()).reduce((s, v) => s + v, 0);
-  const recordedCount = inMonth.length - extrasList.length;
+  // Paychecks, not deposits: a split direct deposit is one paycheck. Grouped over the whole
+  // history (a split can straddle month-end) and owned by the month its first deposit hit.
+  const monthKey = `${p.year}-${String(p.month).padStart(2, "0")}`;
+  const eventsFor = (srcId: string) => payEvents(p.transactions.filter((t) => t.direction === "in" && t.cash_flow_item_id === srcId))
+    .filter((e) => e.date.startsWith(monthKey));
+  const recordedCount = p.sources.reduce((n, src) => n + eventsFor(src.id).length, 0)
+    || inMonth.length - extrasList.length;
 
   const planSum = p.sources.reduce((s, x) => s + x.planMonthly, 0);
   const ratio = planSum > 0 ? p.expectedTotal / planSum : 1;
@@ -538,11 +564,12 @@ export function computeMonthIncome(p: {
   const monthEnd = new Date(p.year, p.month, 0);
   let upcomingRegular = 0, upcomingCount = 0;
   const remainingChecks = (src: IncomeSource): number => {
-    const mine = inMonth.filter((t) => t.cash_flow_item_id === src.id).sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+    const mine = eventsFor(src.id);
+    if (mine.length === 0) return 0;
     const freq = src.frequency ?? "monthly";
     if (freq === "weekly" || freq === "biweekly") {
       const step = freq === "weekly" ? 7 : 14;
-      const last = new Date(`${mine[mine.length - 1].txn_date}T12:00:00`);
+      const last = new Date(`${mine[mine.length - 1].date}T12:00:00`);
       let n = 0;
       for (let d = new Date(last.getTime() + step * 86_400_000); d <= monthEnd; d = new Date(d.getTime() + step * 86_400_000)) n++;
       // Never plan on a 3rd biweekly (or 5th weekly) check: budget on the usual count and
@@ -709,11 +736,18 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
 // Recorded pay per COMPLETED month for one income source, newest first.
 export function recordedIncomeByMonth(txns: CashFlowTransaction[], sourceId: string, today: Date): number[] {
   const nowKey = today.getFullYear() * 12 + today.getMonth();
+  // The month history starts in is usually partial (a bank link brings ~90 days, so it
+  // starts mid-month) — skip it unless it starts in the first few days, or a salary looks
+  // like it dropped a paycheck that month.
+  let earliest: string | null = null;
+  for (const t of txns) if (!earliest || t.txn_date < earliest) earliest = t.txn_date;
+  const partialKey = earliest && Number(earliest.slice(8, 10)) > 5
+    ? Number(earliest.slice(0, 4)) * 12 + (Number(earliest.slice(5, 7)) - 1) : null;
   const byMonth = new Map<number, number>();
   for (const t of txns) {
     if (t.direction !== "in" || t.cash_flow_item_id !== sourceId) continue;
     const k = t.period_year * 12 + (t.period_month - 1);
-    if (k >= nowKey) continue;
+    if (k >= nowKey || k === partialKey) continue;
     byMonth.set(k, (byMonth.get(k) ?? 0) + t.amount);
   }
   return Array.from(byMonth.entries()).sort((a, b) => b[0] - a[0]).map(([, v]) => v);

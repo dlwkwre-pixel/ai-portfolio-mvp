@@ -37,6 +37,9 @@ export default function MoneyStory({
   const money = (n: number) => (isPrivate ? "••••" : `$${Math.round(Math.abs(n)).toLocaleString()}`);
   const signed = (n: number) => (isPrivate ? "••••" : `${n >= 0 ? "+" : "−"}$${Math.round(Math.abs(n)).toLocaleString()}`);
   const leftInChecking = income - spent - pendingPlanned - saved;
+  // Short only because more went to savings than the month left over: the extra came out
+  // of cash already in the bank, which is a choice, not a problem.
+  const fundedFromCash = leftInChecking < 0 && income - spent - pendingPlanned >= 0;
   const change = snapshotChange(netWorthHistory, year, month);
   const name = MONTH_NAMES[month - 1];
 
@@ -44,7 +47,11 @@ export default function MoneyStory({
     { label: "Came in", value: money(income), tone: "var(--green)" },
     { label: "Spent", value: money(spent), tone: "var(--text-primary)" },
     { label: "Moved to savings & investing", value: money(saved), tone: "var(--brand-blue)" },
-    { label: leftInChecking >= 0 ? "Still in checking" : "Short this month", value: money(leftInChecking), tone: leftInChecking >= 0 ? "var(--text-primary)" : "var(--red)" },
+    leftInChecking >= 0
+      ? { label: "Still in checking", value: money(leftInChecking), tone: "var(--text-primary)" }
+      : fundedFromCash
+        ? { label: "From cash you already had", value: money(leftInChecking), tone: "var(--text-secondary)" }
+        : { label: "Short this month", value: money(leftInChecking), tone: "var(--red)" },
   ];
 
   return (
@@ -66,6 +73,7 @@ export default function MoneyStory({
           ? `${money(saved)} already moved to savings or investments. `
           : "Nothing moved to savings or investments yet this month. "}
         {pendingPlanned > 0 ? `${money(pendingPlanned)} of planned bills isn't recorded yet and is held back from what's left. ` : ""}
+        {fundedFromCash ? `You moved more to savings than this month left over, so ${money(leftInChecking)} came from cash you already had. ` : ""}
         {leftInChecking > 0 ? `${money(leftInChecking)} is still in checking, so decide below where it should go.` : ""}
       </p>
       {change && (

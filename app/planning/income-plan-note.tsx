@@ -31,6 +31,9 @@ export default function IncomePlanNote({
   const mismatches = incomeItems.flatMap((item) => {
     const d = detectPayFrequency(transactions, item.id, today);
     if (!d || d.frequency === item.frequency) return [];
+    // Don't flip between twice-a-month and every-2-weeks without enough paychecks to tell.
+    const twiceish = (f: string) => f === "semimonthly" || f === "biweekly";
+    if (!d.confident && twiceish(d.frequency) && twiceish(item.frequency)) return [];
     // Income lines are stored before the 401(k) deferral but deposits arrive after it, so add
     // this line's share of the deferral back per check.
     const share = planSum > 0 ? toMonthlyAmount(item.amount, item.frequency) / planSum : 1;

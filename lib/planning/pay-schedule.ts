@@ -1,4 +1,4 @@
-import { looksLikePayroll, type CashFlowTransaction } from "./transactions";
+import { looksLikePayroll, payEvents, type CashFlowTransaction } from "./transactions";
 
 // Pay-schedule helpers for income entered by hand (no bank link):
 //  - likelyPaycheckSource: does a new "extra" income entry look like a paycheck from one of
@@ -26,7 +26,9 @@ export function likelyPaycheckSource(amount: number, text: string, lines: Income
   return looksLikePayroll(text) && lines.length === 1 ? lines[0] : null;
 }
 
-export type DetectedSchedule = { frequency: "weekly" | "biweekly" | "semimonthly" | "monthly"; perCheck: number; checks: number };
+// confident=false: the paychecks fit both "twice a month" and "every 2 weeks" (too few to
+// tell them apart) — callers shouldn't push a switch between those two on that evidence.
+export type DetectedSchedule = { frequency: "weekly" | "biweekly" | "semimonthly" | "monthly"; perCheck: number; checks: number; confident: boolean };
 
 const DAY = 86_400_000;
 
@@ -34,29 +36,30 @@ const DAY = 86_400_000;
 // them: ~7d weekly, ~14d biweekly, ~15d on 1st/15th-style dates semimonthly, ~30d monthly.
 export function detectPayFrequency(txns: CashFlowTransaction[], sourceId: string, today: Date): DetectedSchedule | null {
   const since = new Date(today.getTime() - 120 * DAY).toISOString().slice(0, 10);
-  const checks = txns
-    .filter((t) => t.direction === "in" && t.cash_flow_item_id === sourceId && t.txn_date >= since && t.amount > 0)
-    .sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+  // Split direct deposits (same paycheck, two accounts) are one paycheck.
+  const checks = payEvents(txns
+    .filter((t) => t.direction === "in" && t.cash_flow_item_id === sourceId && t.txn_date >= since && t.amount > 0));
   if (checks.length < 2) return null;
   const gaps: number[] = [];
-  for (let i = 1; i < checks.length; i++) {
-    const g = Math.round((Date.parse(checks[i].txn_date) - Date.parse(checks[i - 1].txn_date)) / DAY);
-    if (g >= 3) gaps.push(g); // same-week split deposits aren't a schedule
-  }
-  if (gaps.length === 0) return null;
+  for (let i = 1; i < checks.length; i++) gaps.push(Math.round((Date.parse(checks[i].date) - Date.parse(checks[i - 1].date)) / DAY));
   const sortedGaps = gaps.slice().sort((a, b) => a - b);
   const gap = sortedGaps[Math.floor(sortedGaps.length / 2)];
   const amounts = checks.map((c) => c.amount).sort((a, b) => a - b);
   const perCheck = Math.round(amounts[Math.floor(amounts.length / 2)] * 100) / 100;
 
-  let frequency: DetectedSchedule["frequency"] | null = null;
-  if (gap >= 6 && gap <= 8) frequency = "weekly";
-  else if (gap >= 13 && gap <= 15) {
-    // 14-day gaps that always land near the same two dates read as twice-a-month pay
-    const days = checks.map((c) => Number(c.txn_date.slice(8, 10)));
-    const semimonthlyLike = days.every((d) => d <= 2 || (d >= 14 && d <= 16) || d >= 28);
-    frequency = semimonthlyLike && gap === 15 ? "semimonthly" : "biweekly";
-  } else if (gap >= 16 && gap <= 17) frequency = "semimonthly";
-  else if (gap >= 27 && gap <= 33) frequency = "monthly";
-  return frequency ? { frequency, perCheck, checks: checks.length } : null;
+  if (gap >= 6 && gap <= 8) return { frequency: "weekly", perCheck, checks: checks.length, confident: true };
+  if (gap >= 27 && gap <= 33) return { frequency: "monthly", perCheck, checks: checks.length, confident: true };
+  if (gap >= 12 && gap <= 18) {
+    // Twice a month lands on the same two days every month (15th + last day, or 1st +
+    // 15th, give or take a weekend); every-2-weeks drifts ~2 days a month. Month-end days
+    // fold onto day 0 so "the 30th/31st" and "the 1st" read as the same payday.
+    const days = checks.map((c) => { const d = Number(c.date.slice(8, 10)); return d >= 27 ? 0 : d; });
+    const early = days.filter((d) => d < 10), late = days.filter((d) => d >= 10);
+    const tight = (xs: number[]) => xs.length === 0 || Math.max(...xs) - Math.min(...xs) <= 4;
+    const steadyDays = tight(early) && tight(late);
+    // Telling them apart needs ~4 paychecks (2 months); fewer fits both.
+    const confident = checks.length >= 4;
+    return { frequency: steadyDays ? "semimonthly" : "biweekly", perCheck, checks: checks.length, confident };
+  }
+  return null;
 }

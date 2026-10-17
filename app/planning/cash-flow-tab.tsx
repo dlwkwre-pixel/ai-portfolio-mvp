@@ -1001,7 +1001,7 @@ function MonthlySpendChart({
           </div>
           {delta != null && (
             <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: up ? "var(--red)" : "var(--green)", marginTop: "4px" }}>
-              {up ? "▲" : "▼"} {ph((up ? "+" : "") + fmt(delta))} {ph(`since ${firstLabel}`)}
+              {up ? "▲" : "▼"} {ph(fmt(Math.abs(delta)))} {ph(`since ${firstLabel}`)}
             </div>
           )}
         </div>
@@ -1629,7 +1629,7 @@ export default function CashFlowOS({
                   kpiExpenseBlend.assumedTotal > 0.5 ? `${ph(fmt(kpiExpenseBlend.assumedTotal))} assumed` : null,
                 ].filter(Boolean).join(" + ")
               : null },
-          { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : `${monthlyLabel} Savings`, val: ph(fmt(Math.abs(kpiSavings))), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)",
+          { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : `${monthlyLabel} Savings`, val: ph(`${kpiSavings < 0 ? "−" : ""}${fmt(Math.abs(kpiSavings))}`), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)",
             sub: viewMode === "monthly" && selSaved > 0 ? `${ph(fmt(selSaved))} moved to savings` : null },
           { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
         ];
@@ -1797,12 +1797,33 @@ export default function CashFlowOS({
           <IncomePlanNote incomeItems={incomeItems} transactions={transactions} k401EmployeeMonthly={k401EmployeeMonthly ?? 0} isPrivate={isPrivate} />
           {selIncomeTxns.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "10px" }}>
-              {selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date)).map(t => {
+              {(() => {
+                // Split direct deposits (one paycheck landing in two accounts a day or two
+                // apart) get a one-line "this is one paycheck" header above the deposits.
+                const sorted = selIncomeTxns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+                const splitHeader = new Map<string, { total: number; parts: number[] }>();
+                let start: CashFlowTransaction | null = null;
+                for (let k = 0; k < sorted.length; k++) {
+                  const t = sorted[k], prev = sorted[k - 1];
+                  const sameCheck = prev && t.cash_flow_item_id && prev.cash_flow_item_id === t.cash_flow_item_id
+                    && (Date.parse(t.txn_date) - Date.parse(prev.txn_date)) / 86_400_000 <= 3;
+                  if (!sameCheck || !start) { start = t; continue; }
+                  const h = splitHeader.get(start.id) ?? { total: start.amount, parts: [start.amount] };
+                  h.total += t.amount; h.parts.push(t.amount);
+                  splitHeader.set(start.id, h);
+                }
+                return sorted.map(t => {
                 const src = t.cash_flow_item_id ? incomeItems.find(i => i.id === t.cash_flow_item_id) : null;
+                const split = splitHeader.get(t.id);
                 // A paycheck saved as "extra" is counted ON TOP of expected pay — offer the fix.
                 const looksLikePay = !src ? likelyPaycheckSource(t.amount, t.merchant, incomeItems) : null;
                 return (
                   <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "3px 0" }}>
+                  {split && src && (
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                      {`One ${src.label} paycheck · ${ph(fmt(split.total))} · split into ${split.parts.length} deposits (${split.parts.map((a) => ph(fmt(a))).join(" + ")})`}
+                    </div>
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px", fontFamily: "var(--font-body)" }}>
                     <span style={{ color: "var(--text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{MONTH_NAMES[t.period_month - 1]} {Number(t.txn_date.slice(8, 10))}</span>
@@ -1840,7 +1861,8 @@ export default function CashFlowOS({
                   )}
                   </div>
                 );
-              })}
+                });
+              })()}
             </div>
           )}
           <div style={{ marginBottom: "12px" }}>
@@ -2398,7 +2420,10 @@ export default function CashFlowOS({
             return (
               <div key={item.id} style={{ marginBottom: "4px" }}>
                 <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
-                {avg3 !== null && floor !== null && (Math.abs(avg3 - planNow) >= 1 || Math.abs(floor - planNow) >= 1) && (
+                {/* Only when pay actually varies or the plan is off: a steady salary that
+                    matches the plan doesn't need "plan on lowest". */}
+                {avg3 !== null && floor !== null && planNow > 0 &&
+                  ((avg3 - floor) / avg3 > 0.08 || Math.abs(avg3 - planNow) / planNow > 0.08) && (
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "10.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", padding: "2px 0 4px" }}>
                     <span>
                       {"Last 3 months averaged "}
