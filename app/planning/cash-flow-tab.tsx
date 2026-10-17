@@ -994,7 +994,7 @@ function MonthlySpendChart({
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
         <div>
-          <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Spend</div>
+          <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{current ? "Monthly spend · last full month" : "Monthly Spend"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px", color: "var(--text-primary)", lineHeight: 1.1 }}>
             {ph(fmt(latest.spend ?? 0))}
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 500, marginLeft: "7px", fontFamily: "var(--font-body)" }}>{latest.label}</span>
@@ -1388,6 +1388,18 @@ export default function CashFlowOS({
   // Pace check (current month only): fixed bills judged paid-vs-planned, flexible spending
   // judged against how much of the month has gone — so prepaid rent never reads as "88%
   // of the budget gone on the 13th".
+  // Mid-month: where the month is headed, not just where it stands. Income already includes
+  // paychecks still due (computeMonthIncome); spending = fixed bills at least as budgeted
+  // (the rest still to come) + flexible spending at this month's pace, never below what's
+  // already recorded.
+  const monthEndOf = (pace: PaceData | null): { left: number; out: number } | null => {
+    if (!pace || pace.day >= pace.daysInMonth) return null;
+    const projectedOut = Math.max(
+      selBlend.blendedTotal,
+      Math.max(pace.fixedActual, pace.fixedBudget) + Math.max(pace.flexActual, pace.flexProjected),
+    );
+    return { out: projectedOut, left: selIncome.total - projectedOut };
+  };
   const paceData: PaceData | null = (() => {
     if (!isCurrentMonth) return null;
     const day = now.getDate();
@@ -1574,6 +1586,7 @@ export default function CashFlowOS({
     }),
     [cashFlowItems, liquidAssets, monthlyPerf.surplus, emergencyFundTarget, investPctEdit]
   );
+  const monthEnd = monthEndOf(paceData);
   const owedByItemId = useMemo(
     () => new Map(forecast.owedItems.map(o => [o.item.id, o.dueDate])),
     [forecast.owedItems]
@@ -1674,7 +1687,15 @@ export default function CashFlowOS({
         <div style={{ display: "flex", gap: "14px", marginLeft: "auto", flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
           <span>In <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 600 }}>{ph(fmt(selIncome.total))}</span></span>
           <span>Out <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 600 }}>{ph(fmt(selBlend.blendedTotal))}</span></span>
-          <span>Left <span style={{ fontFamily: "var(--font-mono)", color: selIncome.total - selBlend.blendedTotal >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{ph(fmt(selIncome.total - selBlend.blendedTotal))}</span></span>
+          {monthEnd ? (
+            <span title="Income including paychecks still due, minus spending so far, bills still to come, and flexible spending at this month's pace">
+              {"Month-end ≈ "}
+              <span style={{ fontFamily: "var(--font-mono)", color: monthEnd.left >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{ph(`${monthEnd.left < 0 ? "−" : ""}${fmt(Math.abs(monthEnd.left))}`)}</span>
+              {" left"}
+            </span>
+          ) : (
+            <span>Left <span style={{ fontFamily: "var(--font-mono)", color: selIncome.total - selBlend.blendedTotal >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{ph(`${selIncome.total - selBlend.blendedTotal < 0 ? "−" : ""}${fmt(Math.abs(selIncome.total - selBlend.blendedTotal))}`)}</span></span>
+          )}
         </div>
       </div>
       </StickyMonthBar>
@@ -2332,6 +2353,14 @@ export default function CashFlowOS({
         </div>
       )}
 
+      {/* Plan-only views (they show the monthly plan, not this month) — folded so the
+          month's real numbers come first. */}
+      <details className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "12px 18px", marginBottom: "10px" }}>
+        <summary style={{ cursor: "pointer", fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)", minHeight: "32px", display: "flex", alignItems: "center" }}>
+          {"Your plan at a glance"}
+          <span style={{ fontWeight: 400, color: "var(--text-tertiary)", fontSize: "var(--text-xs)", marginLeft: "8px" }}>money flow chart and 50/30/20, based on your monthly plan</span>
+        </summary>
+        <div style={{ marginTop: "10px" }}>
       {/* Sankey — where the money flows (income → categories + savings) */}
       {effectiveIncome > 0 && catData.length > 0 && (
         <CashFlowSankey
@@ -2353,6 +2382,8 @@ export default function CashFlowOS({
         incomeMonthly={effectiveIncome}
         isPrivate={isPrivate}
       />
+        </div>
+      </details>
 
       {/* Bill Calendar */}
       <div className="cfo-zone" style={{
