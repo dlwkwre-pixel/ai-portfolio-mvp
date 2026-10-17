@@ -79,14 +79,20 @@ export function planLeftover(args: {
   debts: RatedAccount[];          // liabilities; rate = APR or null
   emergencyGap: number;           // how far cash is below the emergency target (0 if funded)
   highAprPct?: number;            // pay these off before investing (default 8%)
-}): { steps: LeftoverStep[]; unratedDebts: number; middleDebts: RatedAccount[] } {
+  cardSpendingCounted?: boolean;  // card purchases already count as spending (bank-linked budgets)
+}): { steps: LeftoverStep[]; unratedDebts: number; middleDebts: RatedAccount[]; cards: RatedAccount[] } {
   const high = args.highAprPct ?? 8;
   let left = Math.max(0, args.amount);
   const steps: LeftoverStep[] = [];
   const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
   // 1. High-interest debt, highest APR first: a guaranteed return no investment matches.
-  for (const d of args.debts.filter((d) => d.rate !== null && d.rate >= high && d.balance > 0).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0))) {
+  // A credit card's balance is mostly this month's purchases, already counted as spending —
+  // paying the statement isn't new money out, so cards become a note ("if you carry a
+  // balance…") rather than a step that would subtract the same spending twice.
+  const isStep = (d: RatedAccount) => !(args.cardSpendingCounted && d.revolving);
+  const cards = args.debts.filter((d) => !isStep(d) && d.rate !== null && d.rate >= high && d.balance > 0);
+  for (const d of args.debts.filter((d) => isStep(d) && d.rate !== null && d.rate >= high && d.balance > 0).sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0))) {
     if (left < 1) break;
     const pay = Math.min(left, d.balance);
     left -= pay;
@@ -115,6 +121,7 @@ export function planLeftover(args: {
   }
   return {
     steps,
+    cards,
     unratedDebts: args.debts.filter((d) => d.rate === null && d.balance > 0).length,
     middleDebts: args.debts.filter((d) => d.rate !== null && d.rate >= 5 && d.rate < high && d.balance > 0),
   };

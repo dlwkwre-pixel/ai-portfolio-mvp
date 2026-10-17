@@ -7,14 +7,15 @@ import { planLeftover, type RatedAccount } from "@/lib/planning/money-priorities
 // high-interest debt first (by APR), then the emergency fund gap, then investing.
 
 export default function LeftoverPlan({
-  amount, debts, emergencyGap, isPrivate,
+  amount, debts, emergencyGap, cardSpendingCounted = false, isPrivate,
 }: {
   amount: number;
   debts: RatedAccount[];
   emergencyGap: number;
+  cardSpendingCounted?: boolean;
   isPrivate: boolean;
 }) {
-  const { steps, unratedDebts, middleDebts } = planLeftover({ amount, debts, emergencyGap });
+  const { steps, unratedDebts, middleDebts, cards } = planLeftover({ amount, debts, emergencyGap, cardSpendingCounted });
   if (steps.length === 0) return null;
   const money = (n: number) => (isPrivate ? "••••" : `$${Math.round(n).toLocaleString()}`);
 
@@ -37,6 +38,11 @@ export default function LeftoverPlan({
           </li>
         ))}
       </ol>
+      {cards.length > 0 && (
+        <p style={{ margin: "8px 0 0", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+          {`${cards.map((c) => `${c.label} (${c.rate}% APR)`).join(", ")}: purchases on it already count as spending above, so paying the statement in full isn't extra. If you carry a balance from month to month, pay that down before investing.`}
+        </p>
+      )}
       {middleDebts.length > 0 && (
         <p style={{ margin: "8px 0 0", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
           {`${middleDebts.map((d) => `${d.label} (${d.rate}%)`).join(", ")}: in the 5–8% range, paying extra and investing come out about even, so either is reasonable.`}

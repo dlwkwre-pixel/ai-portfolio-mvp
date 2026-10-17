@@ -31,7 +31,12 @@ export default function PaceGuide({ data, isPrivate }: { data: PaceData; isPriva
   const flexExpected = data.flexBudget * (data.day / data.daysInMonth);
   const flexAhead = data.flexActual > flexExpected * 1.05;
   const fixedDone = data.fixedBudget > 0 && data.fixedActual >= data.fixedBudget * 0.95;
-  const flexFill = data.flexBudget > 0 ? Math.min(100, (data.flexActual / data.flexBudget) * 100) : 0;
+  // Scale to whichever is larger, budget or actual, so overspending shows past the budget
+  // mark instead of the bar just maxing out.
+  const flexScale = Math.max(data.flexBudget, data.flexActual, 1);
+  const flexFill = data.flexBudget > 0 ? (data.flexActual / flexScale) * 100 : 0;
+  const flexBudgetMark = (data.flexBudget / flexScale) * 100;
+  const flexPaceMark = (flexExpected / flexScale) * 100;
   const fixedFill = data.fixedBudget > 0 ? Math.min(100, (data.fixedActual / data.fixedBudget) * 100) : 0;
   const monthName = MONTH_NAMES[data.month - 1];
 
@@ -73,9 +78,18 @@ export default function PaceGuide({ data, isPrivate }: { data: PaceData; isPriva
               <span>Flexible spending</span>
               <span><span style={{ fontFamily: "var(--font-mono)", color: flexAhead ? "var(--amber)" : "var(--text-primary)" }}>{money(data.flexActual)}</span>{` of ${money(data.flexBudget)}`}</span>
             </div>
-            {bar(flexFill, flexAhead ? "var(--amber)" : "var(--green)", pctMonth)}
-            <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "5px" }}>
-              {`At this pace about ${money(data.flexProjected)} by ${monthName} ${data.daysInMonth}`}
+            <div style={{ position: "relative", height: "7px", borderRadius: "var(--radius-full)", background: "var(--surface-006)", marginTop: "6px" }}>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(flexFill, flexBudgetMark)}%`, borderRadius: "var(--radius-full)", background: flexAhead ? "var(--amber)" : "var(--green)" }} />
+              {flexFill > flexBudgetMark && (
+                <div style={{ position: "absolute", left: `${flexBudgetMark}%`, top: 0, bottom: 0, width: `${flexFill - flexBudgetMark}%`, borderRadius: "0 var(--radius-full) var(--radius-full) 0", background: "var(--red)" }} />
+              )}
+              <div title={`Budget: ${money(data.flexBudget)}`} style={{ position: "absolute", top: "-4px", bottom: "-4px", left: `calc(${flexBudgetMark}% - 1px)`, width: "2px", background: "var(--text-primary)", borderRadius: "1px" }} />
+              <div title={`On plan for today: ${money(flexExpected)}`} style={{ position: "absolute", top: "-3px", bottom: "-3px", left: `${flexPaceMark}%`, width: "2px", background: "var(--text-tertiary)", opacity: 0.7, borderRadius: "1px" }} />
+            </div>
+            <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "5px", lineHeight: 1.5 }}>
+              {`On plan you'd be at about ${money(flexExpected)} today (thin mark).`}
+              {data.flexActual > data.flexBudget ? ` You've passed the ${money(data.flexBudget)} budget (dark mark); red is the overage.` : ""}
+              {` If spending keeps this rate, about ${money(data.flexProjected)} by ${monthName} ${data.daysInMonth}`}
               {data.flexProjected > data.flexBudget ? `, ${money(data.flexProjected - data.flexBudget)} over plan.` : ", within plan."}
             </div>
           </div>

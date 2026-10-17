@@ -1311,7 +1311,12 @@ export default function CashFlowOS({
   const kpiIncome = kpiPeriod ? sumIncome(kpiPeriod.from, kpiPeriod.to) : null;
   const kpiIncomeTotal = kpiIncome ? kpiIncome.total : effectiveIncome * mult;
   const kpiIncomeVariance = kpiIncome?.anyRecorded ? kpiIncome.total - kpiIncome.expected : null;
-  const kpiIncomeBadge = kpiIncomeVariance === null ? null : {
+  // Current month with paychecks still due: lead with what has actually arrived.
+  const selReceived = selIncome.total - selIncome.upcomingRegular;
+  const showReceived = viewMode === "monthly" && selIncome.upcomingRegular > 0;
+  const kpiIncomeBadge = showReceived
+    ? { text: `+${fmt(selIncome.upcomingRegular)} still due this month`, over: false }
+    : kpiIncomeVariance === null ? null : {
     text: Math.round(kpiIncomeVariance) === 0 ? "as expected" : `${fmt(Math.abs(kpiIncomeVariance))} ${kpiIncomeVariance > 0 ? "above" : "below"} expected`,
     over: kpiIncomeVariance < 0, // red when income came in short
   };
@@ -1580,11 +1585,13 @@ export default function CashFlowOS({
   // liquidAssets/owed bills still drive the emergency-fund-funded gate (a real-dollars-
   // saved question) and the "Still owed" supporting list. See lib/planning/cash-flow-forecast.ts.
   const forecast = useMemo(
-    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus, new Date(), {
+    // What's left to put to work = this month's surplus minus what's ALREADY been moved to
+    // savings/investments this month (counting it again would offer the same money twice).
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus - Math.max(0, selSaved), new Date(), {
       emergencyFundTarget,
       surplusToInvestPct: investPctEdit,
     }),
-    [cashFlowItems, liquidAssets, monthlyPerf.surplus, emergencyFundTarget, investPctEdit]
+    [cashFlowItems, liquidAssets, monthlyPerf.surplus, selSaved, emergencyFundTarget, investPctEdit]
   );
   const monthEnd = monthEndOf(paceData);
   const owedByItemId = useMemo(
@@ -1627,7 +1634,7 @@ export default function CashFlowOS({
         // month you're looking at without having to check the picker at all.
         const monthlyLabel = `${MONTH_NAMES[selMonth - 1]} ${selYear}`;
         return [
-          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income`, val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)", badge: kpiIncomeBadge },
+          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income${showReceived ? " so far" : ""}`, val: ph(fmt(showReceived ? selReceived : kpiIncomeTotal)), color: "oklch(0.72 0.19 145)", badge: kpiIncomeBadge },
           // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
           // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
           // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
@@ -1685,7 +1692,7 @@ export default function CashFlowOS({
             style={{ minWidth: "36px", minHeight: "36px", border: "none", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: "16px", borderRadius: "var(--radius-sm)" }}>›</button>
         </div>
         <div style={{ display: "flex", gap: "14px", marginLeft: "auto", flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-          <span>In <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 600 }}>{ph(fmt(selIncome.total))}</span></span>
+          <span>{showReceived ? "In so far " : "In "}<span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 600 }}>{ph(fmt(showReceived ? selReceived : selIncome.total))}</span>{showReceived ? <span>{` (+${ph(fmt(selIncome.upcomingRegular))} due)`}</span> : null}</span>
           <span>Out <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 600 }}>{ph(fmt(selBlend.blendedTotal))}</span></span>
           {monthEnd ? (
             <span title="Income including paychecks still due, minus spending so far, bills still to come, and flexible spending at this month's pace">
@@ -1796,8 +1803,17 @@ export default function CashFlowOS({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
             <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
-              {MONTH_NAMES[selMonth - 1]}: {ph(fmt(selIncome.total))}
-              <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}> · expected {ph(fmt(effectiveIncome))}/mo</span>
+              {showReceived ? (
+                <>
+                  {`Received ${ph(fmt(selReceived))}`}
+                  <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` · ${ph(fmt(selIncome.upcomingRegular))} still due · ${ph(fmt(selIncome.total))} for ${MONTH_NAMES[selMonth - 1]}`}</span>
+                </>
+              ) : (
+                <>
+                  {MONTH_NAMES[selMonth - 1]}: {ph(fmt(selIncome.total))}
+                  <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}> · expected {ph(fmt(effectiveIncome))}/mo</span>
+                </>
+              )}
             </span>
           </div>
           {/* What this month's income figure is made of — the plan, or what was recorded. */}
@@ -2177,11 +2193,17 @@ export default function CashFlowOS({
                 : monthlyPerf.loggedCount === 0
                   ? `${fmt(monthlyPerf.budgetedPortion)} budgeted for ${MONTH_NAMES[selMonth - 1]} (nothing logged yet)`
                   : `${fmt(monthlyPerf.actualPortion)} logged − ${fmt(monthlyPerf.budgetedPortion)} still budgeted`}
+              {selSaved > 0 ? ` − ${fmt(selSaved)} already moved to savings` : ""}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
+            {showReceived && (
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                {`Counts your ${fmt(selIncome.upcomingRegular)} paycheck that hasn't arrived yet. Wait for it to land before investing this.`}
+              </div>
+            )}
             {selSaved > 0 && (
               <div style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                {`You've already moved ${ph(fmt(selSaved))} to savings or investments this month.`}
+                {`You've already moved ${ph(fmt(selSaved))} to savings or investments this month, so that's taken out above.`}
               </div>
             )}
             {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (
@@ -2211,6 +2233,7 @@ export default function CashFlowOS({
               <LeftoverPlan
                 amount={forecast.monthlySurplus}
                 debts={ratedDebts}
+                cardSpendingCounted
                 emergencyGap={forecast.emergencyFundFunded ? 0 : Math.max(0, forecast.emergencyFundTarget - Math.max(0, forecast.freeCash))}
                 isPrivate={isPrivate}
               />
