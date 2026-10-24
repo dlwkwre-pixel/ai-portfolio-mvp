@@ -141,7 +141,13 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
   const dayDiff = (a: string, b: string) => Math.abs(new Date(`${a}T00:00:00Z`).getTime() - new Date(`${b}T00:00:00Z`).getTime()) / 86_400_000;
   for (const inflow of posted) {
     const c = classified.get(inflow.id)!;
-    if (inflow.amount >= 0 || c.kind !== "income" || !MOVE_RE.test(`${inflow.merchant ?? ""} ${inflow.name}`)) continue;
+    if (inflow.amount >= 0 || c.kind !== "income" || inflow.detailed === "INCOME_WAGES") continue;
+    // Looks like money arriving from somewhere (not a purchase refund or a paycheck): a
+    // transfer-ish description, "From <bank>", or Plaid calling it a transfer/deposit. The
+    // exact-amount outflow on ANOTHER linked account (below) is what confirms it — e.g.
+    // Chase "Robinhood −$825.95" + Robinhood savings "From Chase +$825.95" the same day.
+    const inText = `${inflow.merchant ?? ""} ${inflow.name}`;
+    if (!MOVE_RE.test(inText) && !/^\s*from\s/i.test(inText) && !(inflow.detailed ?? "").startsWith("TRANSFER_IN")) continue;
     const outflow = posted.find((o) => o.amount > 0 && !usedOut.has(o.id) && o.accountId !== inflow.accountId
       && Math.abs(o.amount + inflow.amount) < 0.005 && dayDiff(o.date, inflow.date) <= 4
       && (["save", "transfer"].includes(classified.get(o.id)!.kind) || MOVE_RE.test(`${o.merchant ?? ""} ${o.name}`)));
