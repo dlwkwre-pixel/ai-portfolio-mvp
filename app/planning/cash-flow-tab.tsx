@@ -1960,7 +1960,7 @@ export default function CashFlowOS({
           </div>
         )}
 
-        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} bankLinked={!!bankLink?.linked} />
+        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} bankLinked={!!bankLink?.linked} transactions={transactions} />
 
         <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
           loggedTotals={expenseActuals.filter(a => a.source !== "transactions" && a.period_year === selYear && a.period_month === selMonth)}

@@ -1376,6 +1376,9 @@ export async function updateTransactionBucket(
   id: string,
   bucket: string | null,
   remember: boolean,
+  // false from "To review": picking a bucket there shouldn't also approve the row — the
+  // user confirms with the ✓, so a misclick in the dropdown is easy to fix.
+  markReviewed = true,
 ): Promise<{ error?: string; moved?: number }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -1410,10 +1413,12 @@ export async function updateTransactionBucket(
     .update({ cash_flow_item_id: itemId, updated_at: new Date().toISOString() })
     .in("id", ids).eq("user_id", user.id);
   if (error) return { error: error.message };
-  // Choosing a bucket is reviewing it. Separate, best-effort: works before the
-  // reviewed_at column exists too.
-  await supabase.from("cash_flow_transactions").update({ reviewed_at: new Date().toISOString() })
-    .in("id", ids).eq("user_id", user.id).then((r) => r, () => ({}));
+  // Choosing a bucket outside To review counts as reviewing it. Separate, best-effort:
+  // works before the reviewed_at column exists too.
+  if (markReviewed) {
+    await supabase.from("cash_flow_transactions").update({ reviewed_at: new Date().toISOString() })
+      .in("id", ids).eq("user_id", user.id).then((r) => r, () => ({}));
+  }
   revalidatePath("/planning");
   return { moved: ids.length };
 }
@@ -1608,9 +1613,14 @@ export async function deleteTransaction(id: string): Promise<{ error?: string }>
     .select("source, external_id").eq("id", id).eq("user_id", user.id).maybeSingle();
   const { error } = await supabase.from("cash_flow_transactions").delete().eq("id", id).eq("user_id", user.id);
   if (error) return { error: error.message };
-  // A deleted bank transaction must not come back on the next Plaid sync.
+  // A deleted bank transaction must not come back on the next Plaid sync, and its
+  // net-savings bookkeeping row (e.g. "paid from savings") goes with it.
   if (row?.source === "plaid" && row.external_id) {
     try { await dismissPlaidTransaction(user.id, row.external_id); } catch { /* best-effort */ }
+    if (!/^(tosavings|fromsavings):/.test(row.external_id)) {
+      await supabase.from("cash_flow_transactions").delete().eq("user_id", user.id)
+        .in("external_id", [`tosavings:${row.external_id}`, `fromsavings:${row.external_id}`]);
+    }
   }
   revalidatePath("/planning");
   return {};

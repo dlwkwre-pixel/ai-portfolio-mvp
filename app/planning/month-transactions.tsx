@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual } from "./planning-actions";
 import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets, markTransactionsReviewed } from "./planning-actions";
-import { NEW_PAYCHECK_BUCKET, guessBucket, needsReview, type CashFlowTransaction } from "@/lib/planning/transactions";
+import { NEW_PAYCHECK_BUCKET, guessBucket, isSavingsAdjustment, needsReview, type CashFlowTransaction } from "@/lib/planning/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { MONTH_NAMES } from "./planning-shared";
@@ -77,7 +77,10 @@ export default function MonthTransactions({
   // "All months" search answers "how much at Costco this year?" across everything loaded.
   const searchAll = scope === "all" && q.length > 0;
   const base = searchAll ? transactions.slice().sort((a, b) => b.txn_date.localeCompare(a.txn_date)) : month;
+  // Savings bookkeeping rows count toward "Saved" but never show as rows of their own.
+  const adjustments = month.filter((t) => isSavingsAdjustment(t));
   const filtered = base.filter((t) => {
+    if (isSavingsAdjustment(t)) return false;
     if (activeFilter === "unsorted" && !(t.direction === "out" && !t.cash_flow_item_id)) return false;
     if (activeFilter === "spending" && t.direction !== "out") return false;
     if (activeFilter === "income" && t.direction !== "in") return false;
@@ -101,7 +104,8 @@ export default function MonthTransactions({
       return;
     }
     startTransition(async () => {
-      const res = await updateTransactionBucket(t.id, value || null, remember && !!value);
+      // Still unreviewed → keep it in To review until the ✓ is tapped.
+      const res = await updateTransactionBucket(t.id, value || null, remember && !!value, t.reviewed_at !== null);
       if (res.error) { setNotice({ text: res.error, tone: "err" }); return; }
       const dest = value === NEW_PAYCHECK_BUCKET ? "Paycheck"
         : value.startsWith("new:") ? value.slice(4)
@@ -419,6 +423,13 @@ export default function MonthTransactions({
                 </p>
               )}
               {shown.map((t) => renderRow(t, false))}
+              {activeFilter === "saved" && adjustments.length > 0 && (
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, padding: "10px 12px", lineHeight: 1.5 }}>
+                  {"The Saved total is net: "}
+                  {adjustments.map((a) => `${a.amount < 0 ? "−" : "+"}${money(Math.abs(a.amount), isPrivate)} ${a.merchant.replace(/^(Paid from savings|Went straight to savings): /, a.amount < 0 ? "paid from savings (" : "went straight to savings (")})`).join(", ")}
+                  {". These aren't separate purchases; the spending itself is listed once."}
+                </p>
+              )}
               {filtered.length > PAGE && !showAll && (
                 <button type="button" onClick={() => setShowAll(true)}
                   style={{ width: "100%", minHeight: "40px", background: "transparent", border: "none", color: "var(--brand-blue)", fontSize: "var(--text-xs)", fontFamily: "var(--font-body)", cursor: "pointer" }}>

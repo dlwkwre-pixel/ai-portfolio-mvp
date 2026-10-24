@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordBillPaid } from "./planning-actions";
+import { recordBillPaid, updateTransactionBucket } from "./planning-actions";
+import { isSavingsAdjustment, type CashFlowTransaction } from "@/lib/planning/transactions";
 import { MONTH_NAMES } from "./planning-shared";
 
 // Planned budget lines with nothing recorded for the month. Until something is recorded
@@ -20,9 +21,10 @@ function ordinal(n: number): string {
 }
 
 export default function UnrecordedBills({
-  lines, selYear, selMonth, isPrivate, bankLinked = false,
+  lines, selYear, selMonth, isPrivate, bankLinked = false, transactions = [],
 }: {
   lines: UnrecordedLine[];
+  transactions?: CashFlowTransaction[];
   selYear: number;
   selMonth: number;
   isPrivate: boolean;
@@ -41,6 +43,25 @@ export default function UnrecordedBills({
   const total = lines.reduce((s, l) => s + l.planned, 0);
   const money = (n: number) => (isPrivate ? "••••" : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
 
+  // A bank charge this month at about this bill's amount (within 3%) that's sorted
+  // elsewhere — usually the bill itself under another name ("Whitney At The Heights" for
+  // Rent). Using it beats "Paid", which would add the same bill a second time.
+  function bankMatch(line: UnrecordedLine): CashFlowTransaction | null {
+    return transactions.find((t) => t.source === "plaid" && t.direction === "out" && !isSavingsAdjustment(t)
+      && t.period_year === selYear && t.period_month === selMonth && t.cash_flow_item_id !== line.id
+      && Math.abs(t.amount - line.planned) <= line.planned * 0.03) ?? null;
+  }
+  function applyMatch(line: UnrecordedLine, t: CashFlowTransaction) {
+    setError(null);
+    setBusyId(line.id);
+    startTransition(async () => {
+      const res = await updateTransactionBucket(t.id, line.id, true);
+      setBusyId(null);
+      if (res.error) { setError(res.error); return; }
+      router.refresh();
+    });
+  }
+
   function record(line: UnrecordedLine) {
     const raw = amounts[line.id];
     const amount = raw !== undefined && raw !== "" ? Number(raw) : line.planned;
@@ -54,7 +75,23 @@ export default function UnrecordedBills({
     });
   }
 
-  const tile = (l: UnrecordedLine, verb: string) => (
+  const tile = (l: UnrecordedLine, verb: string) => {
+    const match = bankMatch(l);
+    if (match) {
+      return (
+        <div key={l.id} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "8px 10px", border: "1px solid var(--amber)", borderRadius: "var(--radius-sm)", background: "var(--bg-surface)", minWidth: 0 }}>
+          <div style={{ flex: "1 1 180px", minWidth: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.45 }}>
+            <strong style={{ color: "var(--text-primary)" }}>{l.label}</strong>
+            {`: your bank shows ${match.merchant} for ${isPrivate ? "••••" : `$${match.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} on ${MONTH_NAMES[match.period_month - 1].slice(0, 3)} ${Number(match.txn_date.slice(8, 10))}. Is that it?`}
+          </div>
+          <button type="button" onClick={() => applyMatch(l, match)} disabled={pending}
+            style={{ flexShrink: 0, minHeight: "34px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--green-border)", background: "var(--green-bg)", color: "var(--green)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+            {busyId === l.id ? "…" : `Yes, count it as ${l.label}`}
+          </button>
+        </div>
+      );
+    }
+    return (
     <div key={l.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", background: "var(--bg-surface)", minWidth: 0 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.label}</div>
@@ -72,7 +109,8 @@ export default function UnrecordedBills({
         {busyId === l.id ? "…" : verb}
       </button>
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>

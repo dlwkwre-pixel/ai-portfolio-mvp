@@ -37,7 +37,17 @@ export type CashFlowTransaction = {
   // Bank-synced rows start unreviewed (null) and show under "To review" until marked.
   // Absent before supabase/cash-flow-transactions-reviewed.sql runs — treated as reviewed.
   reviewed_at?: string | null;
+  // Plaid transaction id for bank rows; "tosavings:<id>" / "fromsavings:<id>" for the
+  // net-savings bookkeeping rows the sync adds (see isSavingsAdjustment).
+  external_id?: string | null;
 };
+
+// Net-savings bookkeeping rows (rent paid straight from savings, a paycheck landing in
+// savings): they adjust the "saved" total but aren't purchases or deposits of their own,
+// so transaction lists hide them — shown as rows they looked like duplicate charges.
+export function isSavingsAdjustment(t: { external_id?: string | null }): boolean {
+  return !!t.external_id && /^(tosavings|fromsavings):/.test(t.external_id);
+}
 
 // What shows in "To review": new bank transactions not yet marked, and anything that
 // still needs a bucket (it isn't counted until it has one).

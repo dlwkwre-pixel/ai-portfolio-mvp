@@ -256,8 +256,14 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     });
   }
   const postedIds = new Set(posted.map((t) => t.id));
-  const stale = existing.filter((r) => r.external_id && /^(tosavings|fromsavings):/.test(r.external_id)
-    && postedIds.has(r.external_id.split(":")[1]) && !wanted.has(r.external_id)).map((r) => r.id);
+  // Drop bookkeeping rows that no longer apply: reclassified, or their bank transaction
+  // was deleted by the user (dismissed) — otherwise "saved" keeps an adjustment for a
+  // purchase that's gone.
+  const stale = existing.filter((r) => {
+    if (!r.external_id || !/^(tosavings|fromsavings):/.test(r.external_id)) return false;
+    const base = r.external_id.split(":")[1];
+    return dismissed.has(base) || (postedIds.has(base) && !wanted.has(r.external_id));
+  }).map((r) => r.id);
   if (stale.length > 0) await admin.from("cash_flow_transactions").delete().eq("user_id", userId).in("id", stale);
 
   if (candidates.length === 0 && syntheticRecords.length === 0) return { inserted: 0, transfers };

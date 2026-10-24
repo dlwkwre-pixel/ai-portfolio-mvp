@@ -28,7 +28,7 @@ import type { ApartmentListing } from "./apartment/apartment-actions";
 // column hasn't been added yet (supabase/cash-flow-transactions-reviewed.sql) so a pending
 // migration never blanks the page.
 async function loadTransactions(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const cols = "id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note";
+  const cols = "id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note, external_id";
   const query = (select: string) => supabase.from("cash_flow_transactions")
     .select(select).eq("user_id", userId).gte("txn_date", transactionWindowStart())
     .order("txn_date", { ascending: false }).limit(8000);
