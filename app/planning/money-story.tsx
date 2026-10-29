@@ -23,12 +23,15 @@ function snapshotChange(history: NetWorthSnapshot[], year: number, month: number
 }
 
 export default function MoneyStory({
-  income, spent, pendingPlanned = 0, saved, year, month, netWorthHistory, isPrivate,
+  income, spent, pendingPlanned = 0, setAside = 0, setAsideNotMoved = 0, setAsideLabels = [], saved, year, month, netWorthHistory, isPrivate,
 }: {
   income: number;
-  spent: number;          // recorded spending (+ set-asides for bills not due this month)
+  spent: number;          // everyday spending recorded this month (bills that aren't monthly excluded)
   pendingPlanned?: number; // planned lines not recorded yet — told, not silently counted
-  saved: number;
+  setAside?: number;       // accrual for bills that aren't monthly (insurance ÷ 6…)
+  setAsideNotMoved?: number; // part of the set-aside still sitting in checking
+  setAsideLabels?: string[];
+  saved: number;           // saved & invested beyond the set-aside
   year: number;
   month: number;
   netWorthHistory: NetWorthSnapshot[];
@@ -36,17 +39,18 @@ export default function MoneyStory({
 }) {
   const money = (n: number) => (isPrivate ? "••••" : `$${Math.round(Math.abs(n)).toLocaleString()}`);
   const signed = (n: number) => (isPrivate ? "••••" : `${n >= 0 ? "+" : "−"}$${Math.round(Math.abs(n)).toLocaleString()}`);
-  const leftInChecking = income - spent - pendingPlanned - saved;
+  const leftInChecking = income - spent - pendingPlanned - setAside - saved;
   // Short only because more went to savings than the month left over: the extra came out
   // of cash already in the bank, which is a choice, not a problem.
-  const fundedFromCash = leftInChecking < 0 && income - spent - pendingPlanned >= 0;
+  const fundedFromCash = leftInChecking < 0 && income - spent - pendingPlanned - setAside >= 0;
   const change = snapshotChange(netWorthHistory, year, month);
   const name = MONTH_NAMES[month - 1];
 
   const steps: { label: string; value: string; tone: string }[] = [
     { label: "Came in", value: money(income), tone: "var(--green)" },
     { label: "Spent", value: money(spent), tone: "var(--text-primary)" },
-    { label: "Moved to savings & investing", value: money(saved), tone: "var(--brand-blue)" },
+    ...(setAside > 0.5 ? [{ label: "Set aside for bills", value: money(setAside), tone: "var(--text-secondary)" }] : []),
+    { label: "Saved & invested", value: money(saved), tone: "var(--brand-blue)" },
     leftInChecking >= 0
       ? { label: "Still in checking", value: money(leftInChecking), tone: "var(--text-primary)" }
       : fundedFromCash
@@ -72,6 +76,7 @@ export default function MoneyStory({
         {saved > 0
           ? `${money(saved)} already moved to savings or investments. `
           : "Nothing moved to savings or investments yet this month. "}
+        {setAside > 0.5 ? `${money(setAside)} is set aside this month for ${setAsideLabels.join(", ") || "bills that aren't monthly"}, earmarked in savings until the bill comes${setAsideNotMoved > 0.5 ? `; ${money(setAsideNotMoved)} of it is still in checking, so move it over` : ""}. ` : ""}
         {pendingPlanned > 0 ? `${money(pendingPlanned)} of planned bills isn't recorded yet and is held back from what's left. ` : ""}
         {fundedFromCash ? `You moved more to savings than this month left over, so ${money(leftInChecking)} came from cash you already had. ` : ""}
         {leftInChecking > 0 ? `${money(leftInChecking)} is still in checking, so decide below where it should go.` : ""}

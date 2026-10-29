@@ -241,7 +241,9 @@ export default function MonthTransactions({
             {`${MONTH_NAMES[t.period_month - 1]} ${Number(t.txn_date.slice(8, 10))}${searchAll && t.period_year !== selYear ? ` '${String(t.period_year).slice(2)}` : ""}`}
           </span>
           {t.direction === "save" ? (
-            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Saved / invested</span>
+            <span style={{ fontSize: "var(--text-xs)", color: t.amount < 0 ? "var(--amber)" : "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+              {t.amount < 0 ? "Taken out of savings (lowers saved)" : "Saved / invested"}
+            </span>
           ) : (
             <select value={t.cash_flow_item_id ?? ""} disabled={pending} onChange={(e) => handleBucket(t, e.target.value)} aria-label={`Bucket for ${t.merchant}`}
               style={{ ...selectStyle, borderColor: t.direction === "out" && !t.cash_flow_item_id ? "var(--amber)" : "var(--border-subtle)", color: t.cash_flow_item_id ? "var(--text-primary)" : t.direction === "out" ? "var(--amber)" : "var(--text-secondary)" }}>

@@ -27,7 +27,8 @@ import IncomePlanNote from "./income-plan-note";
 import { likelyPaycheckSource } from "@/lib/planning/pay-schedule";
 import type { RatedAccount } from "@/lib/planning/money-priorities";
 import StickyMonthBar from "./sticky-month-bar";
-import { billPlanForMonth } from "@/lib/planning/frequency";
+import { billPlanForMonth, intervalMonths, monthsSinceDue, nextDueMonth } from "@/lib/planning/frequency";
+import SinkingFunds, { type SinkingFund } from "./sinking-funds";
 import BillScheduleEditor from "./bill-schedule-editor";
 import PaceGuide, { type PaceData } from "./pace-guide";
 import MoneyStory from "./money-story";
@@ -1150,6 +1151,21 @@ export default function CashFlowOS({
     return billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, y, m), y, m);
   }
 
+  // Spread bills (insurance every 6 months…) as sinking funds: the monthly set-aside to move
+  // to savings, and what should be saved toward each by now.
+  const sinkingFunds: SinkingFund[] = expenseItems.flatMap((i) => {
+    const line = lineFor(i, selYear, selMonth);
+    const n = intervalMonths(i.frequency);
+    if (!line.periodic || !n || i.bill_mode === "when_paid") return [];
+    const since = monthsSinceDue(i, selYear, selMonth);
+    return [{
+      id: i.id, label: i.label, perMonth: line.plan, bill: line.paymentAmount, everyMonths: n,
+      shouldHave: since === null ? null : since * line.plan,
+      next: nextDueMonth(i, selYear, selMonth),
+      dueThisMonth: line.due === true,
+    }];
+  });
+
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
       const items = expenseItems.filter(i => categoryOf(i) === cat.label);
@@ -1247,6 +1263,21 @@ export default function CashFlowOS({
   }
   const selUnrecorded = selPeriod <= nowPeriod ? unrecordedLinesFor(selYear, selMonth) : [];
   const selSaved = savedFor(selYear, selMonth);
+  // Accrual for bills that aren't monthly: each month their share (insurance ÷ 6) is set
+  // aside, earmarked inside savings — so "saved & invested" is what was moved to savings
+  // MINUS that earmark, and a bill later paid out of savings draws on the earmark instead
+  // of counting as money taken out of savings.
+  const reserveThisMonth = sinkingFunds.reduce((s, f) => s + f.perMonth, 0);
+  const spreadLineIds = new Set(sinkingFunds.map((f) => f.id));
+  const reserveUsed = transactions
+    .filter((t) => t.period_year === selYear && t.period_month === selMonth && (t.external_id ?? "").startsWith("fromsavings:"))
+    .reduce((s, t) => {
+      const base = transactions.find((b) => b.external_id === t.external_id!.slice("fromsavings:".length));
+      return base?.cash_flow_item_id && spreadLineIds.has(base.cash_flow_item_id) ? s + Math.abs(t.amount) : s;
+    }, 0);
+  const savedRaw = selSaved - reserveThisMonth + reserveUsed;
+  const savedBeyondReserve = Math.max(0, savedRaw);
+  const reserveNotMoved = Math.max(0, -savedRaw);
   const selBlend = sumBlendedExpenses(selPeriod, selPeriod);
   const unusualCharges = useMemo(() => {
     const ok = new Set(dismissedAlerts);
@@ -1587,11 +1618,12 @@ export default function CashFlowOS({
   const forecast = useMemo(
     // What's left to put to work = this month's surplus minus what's ALREADY been moved to
     // savings/investments this month (counting it again would offer the same money twice).
-    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus - Math.max(0, selSaved), new Date(), {
+    // (the set-aside is already inside the surplus's spending, so only savings beyond it count)
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus - savedBeyondReserve, new Date(), {
       emergencyFundTarget,
       surplusToInvestPct: investPctEdit,
     }),
-    [cashFlowItems, liquidAssets, monthlyPerf.surplus, selSaved, emergencyFundTarget, investPctEdit]
+    [cashFlowItems, liquidAssets, monthlyPerf.surplus, savedBeyondReserve, emergencyFundTarget, investPctEdit]
   );
   const monthEnd = monthEndOf(paceData);
   const owedByItemId = useMemo(
@@ -2151,8 +2183,10 @@ export default function CashFlowOS({
       )}
 
       <CfSectionTitle step="3" title="Left over" hint="Income minus spending, and where it should go." />
-      <MoneyStory income={selIncome.total} spent={selBlend.recordedTotal + selBlend.setAsideTotal} pendingPlanned={selBlend.assumedTotal}
-        saved={selSaved} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
+      <SinkingFunds funds={sinkingFunds} isPrivate={isPrivate} />
+      <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
+        setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
+        saved={savedBeyondReserve} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund
@@ -2193,7 +2227,7 @@ export default function CashFlowOS({
                 : monthlyPerf.loggedCount === 0
                   ? `${fmt(monthlyPerf.budgetedPortion)} budgeted for ${MONTH_NAMES[selMonth - 1]} (nothing logged yet)`
                   : `${fmt(monthlyPerf.actualPortion)} logged − ${fmt(monthlyPerf.budgetedPortion)} still budgeted`}
-              {selSaved > 0 ? ` − ${fmt(selSaved)} already moved to savings` : ""}
+              {savedBeyondReserve > 0 ? ` − ${fmt(savedBeyondReserve)} already saved${reserveThisMonth > 0.5 ? " (beyond the bill set-aside)" : ""}` : ""}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
             {showReceived && (
@@ -2201,9 +2235,9 @@ export default function CashFlowOS({
                 {`Counts your ${fmt(selIncome.upcomingRegular)} paycheck that hasn't arrived yet. Wait for it to land before investing this.`}
               </div>
             )}
-            {selSaved > 0 && (
+            {savedBeyondReserve > 0 && (
               <div style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                {`You've already moved ${ph(fmt(selSaved))} to savings or investments this month, so that's taken out above.`}
+                {`You've already saved ${ph(fmt(savedBeyondReserve))} this month${reserveThisMonth > 0.5 ? `, plus ${ph(fmt(reserveThisMonth))} set aside for bills` : ""}, so that's taken out above.`}
               </div>
             )}
             {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (

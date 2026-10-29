@@ -192,7 +192,10 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       const toSavingsOrInvesting = dest
         ? isSavingsAcct(dest) || acctById.get(dest)?.type === "investment"
         : SAVE_DETAILED.has(t.detailed ?? "") || /brokerage|invest|\bira\b|roth/i.test(`${t.merchant ?? ""} ${t.name}`);
-      if (c.kind === "save" || (c.kind === "transfer" && toSavingsOrInvesting)) {
+      // Paying a credit card from savings settles purchases already counted as spending when
+      // they were made (often last month) — a transfer, not money taken out of savings.
+      const cardPayment = (t.detailed ?? "").startsWith("LOAN_PAYMENTS") || (dest ? acctById.get(dest)?.type === "credit" : false);
+      if (c.kind === "save" || (c.kind === "transfer" && (toSavingsOrInvesting || cardPayment))) {
         classified.set(t.id, { kind: "transfer" });
       } else if (c.kind === "transfer") {
         classified.set(t.id, { kind: "save" });
