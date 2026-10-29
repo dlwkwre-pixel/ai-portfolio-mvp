@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual } from "./planning-actions";
 import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets, markTransactionsReviewed } from "./planning-actions";
-import { NEW_PAYCHECK_BUCKET, guessBucket, isSavingsAdjustment, needsReview, type CashFlowTransaction } from "@/lib/planning/transactions";
+import { NEW_PAYCHECK_BUCKET, guessBucket, isSavingsAdjustment, needsReview, payEvents, type CashFlowTransaction } from "@/lib/planning/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
 import { MONTH_NAMES } from "./planning-shared";
@@ -224,6 +224,13 @@ export default function MonthTransactions({
     const pool = t.direction === "in" ? incomeItems : expenseItems;
     const isRefund = t.direction === "out" && t.amount < 0;
     const canMarkReviewed = withReview && t.source === "plaid" && t.reviewed_at === null && !(t.direction === "out" && !t.cash_flow_item_id);
+    // Twice-a-month pay looks like a duplicate (same name, same amount): say which one this is.
+    // (split deposits — $1,773 + $500 a day apart — are one paycheck, via payEvents)
+    const otherPaychecks = t.direction === "in" && t.cash_flow_item_id
+      ? payEvents(transactions.filter((o) => o.direction === "in" && o.cash_flow_item_id === t.cash_flow_item_id
+          && o.period_year === t.period_year && o.period_month === t.period_month))
+          .filter((e) => Math.abs(Date.parse(e.date) - Date.parse(t.txn_date)) / 86_400_000 > 3)
+      : [];
     return (
       <div key={t.id} style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "8px 10px", borderBottom: "1px solid var(--border-subtle)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "baseline" }}>
@@ -236,6 +243,11 @@ export default function MonthTransactions({
             {t.direction === "in" ? "+" : isRefund ? "−" : ""}{money(t.amount, isPrivate)}
           </span>
         </div>
+        {otherPaychecks.length > 0 && (
+          <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+            {`Not a duplicate: 1 of ${otherPaychecks.length + 1} ${itemLabel.get(t.cash_flow_item_id!) ?? "pay"} paychecks in ${MONTH_NAMES[t.period_month - 1]} (also ${otherPaychecks.map((e) => `${MONTH_NAMES[Number(e.date.slice(5, 7)) - 1].slice(0, 3)} ${Number(e.date.slice(8, 10))}`).join(", ")}).`}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: `52px minmax(0, 1fr)${canMarkReviewed ? " auto" : ""} 36px`, gap: "6px", alignItems: "center" }}>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
             {`${MONTH_NAMES[t.period_month - 1]} ${Number(t.txn_date.slice(8, 10))}${searchAll && t.period_year !== selYear ? ` '${String(t.period_year).slice(2)}` : ""}`}
