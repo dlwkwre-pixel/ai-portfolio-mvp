@@ -1277,6 +1277,10 @@ export default function CashFlowOS({
       return base?.cash_flow_item_id && spreadLineIds.has(base.cash_flow_item_id) ? s + Math.abs(t.amount) : s;
     }, 0);
   const savedRaw = selSaved - reserveThisMonth + reserveUsed;
+  // Money moved into investing this month (bank sync). When known, only THAT is taken out
+  // of what's available to invest: savings that haven't been invested yet are still
+  // available. Without it (no bank link), everything already saved is taken out.
+  const investedThisMonth = investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null;
   const savedBeyondReserve = Math.max(0, savedRaw);
   const reserveNotMoved = Math.max(0, -savedRaw);
   const selBlend = sumBlendedExpenses(selPeriod, selPeriod);
@@ -1620,11 +1624,11 @@ export default function CashFlowOS({
     // What's left to put to work = this month's surplus minus what's ALREADY been moved to
     // savings/investments this month (counting it again would offer the same money twice).
     // (the set-aside is already inside the surplus's spending, so only savings beyond it count)
-    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus - savedBeyondReserve, new Date(), {
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlyPerf.surplus - (investedThisMonth !== null ? Math.max(0, investedThisMonth) : savedBeyondReserve), new Date(), {
       emergencyFundTarget,
       surplusToInvestPct: investPctEdit,
     }),
-    [cashFlowItems, liquidAssets, monthlyPerf.surplus, savedBeyondReserve, emergencyFundTarget, investPctEdit]
+    [cashFlowItems, liquidAssets, monthlyPerf.surplus, savedBeyondReserve, investedThisMonth, emergencyFundTarget, investPctEdit]
   );
   const monthEnd = monthEndOf(paceData);
   const owedByItemId = useMemo(
@@ -2228,7 +2232,9 @@ export default function CashFlowOS({
                 : monthlyPerf.loggedCount === 0
                   ? `${fmt(monthlyPerf.budgetedPortion)} budgeted for ${MONTH_NAMES[selMonth - 1]} (nothing logged yet)`
                   : `${fmt(monthlyPerf.actualPortion)} logged − ${fmt(monthlyPerf.budgetedPortion)} still budgeted`}
-              {savedBeyondReserve > 0 ? ` − ${fmt(savedBeyondReserve)} already saved${reserveThisMonth > 0.5 ? " (beyond the bill set-aside)" : ""}` : ""}
+              {investedThisMonth !== null
+                ? investedThisMonth > 0 ? ` − ${fmt(investedThisMonth)} already invested` : ""
+                : savedBeyondReserve > 0 ? ` − ${fmt(savedBeyondReserve)} already saved${reserveThisMonth > 0.5 ? " (beyond the bill set-aside)" : ""}` : ""}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
             {showReceived && (
@@ -2238,7 +2244,9 @@ export default function CashFlowOS({
             )}
             {savedBeyondReserve > 0 && (
               <div style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                {`You've already saved ${ph(fmt(savedBeyondReserve))} this month${reserveThisMonth > 0.5 ? `, plus ${ph(fmt(reserveThisMonth))} set aside for bills` : ""}, so that's taken out above.`}
+                {investedThisMonth !== null
+                  ? `You've saved ${ph(fmt(savedBeyondReserve))} this month${reserveThisMonth > 0.5 ? ` (plus ${ph(fmt(reserveThisMonth))} set aside for bills)` : ""} and invested ${ph(fmt(Math.max(0, investedThisMonth)))} of it. What's still sitting in savings counts as available to invest.`
+                  : `You've already saved ${ph(fmt(savedBeyondReserve))} this month${reserveThisMonth > 0.5 ? `, plus ${ph(fmt(reserveThisMonth))} set aside for bills` : ""}, so that's taken out above.`}
               </div>
             )}
             {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (
