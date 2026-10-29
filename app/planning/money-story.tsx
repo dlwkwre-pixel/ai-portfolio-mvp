@@ -23,7 +23,7 @@ function snapshotChange(history: NetWorthSnapshot[], year: number, month: number
 }
 
 export default function MoneyStory({
-  income, spent, pendingPlanned = 0, setAside = 0, setAsideNotMoved = 0, setAsideLabels = [], saved, year, month, netWorthHistory, isPrivate,
+  income, spent, pendingPlanned = 0, setAside = 0, setAsideNotMoved = 0, setAsideLabels = [], saved, invested = null, year, month, netWorthHistory, isPrivate,
 }: {
   income: number;
   spent: number;          // everyday spending recorded this month (bills that aren't monthly excluded)
@@ -32,6 +32,7 @@ export default function MoneyStory({
   setAsideNotMoved?: number; // part of the set-aside still sitting in checking
   setAsideLabels?: string[];
   saved: number;           // saved & invested beyond the set-aside
+  invested?: number | null; // net moved into investing accounts this month (from bank sync)
   year: number;
   month: number;
   netWorthHistory: NetWorthSnapshot[];
@@ -74,7 +75,11 @@ export default function MoneyStory({
       </div>
       <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.55 }}>
         {saved > 0
-          ? `${money(saved)} already moved to savings or investments. `
+          ? invested !== null && Math.abs(invested) >= 1
+            ? invested > 0
+              ? `${money(saved)} saved & invested: ${money(Math.min(invested, saved))} went into investing${saved - invested >= 1 ? ` and ${money(saved - invested)} stayed in savings` : ""}. `
+              : `${money(saved)} saved, and ${money(invested)} came back out of investing. `
+            : `${money(saved)} already moved to savings or investments. `
           : "Nothing moved to savings or investments yet this month. "}
         {setAside > 0.5 ? `${money(setAside)} is set aside this month for ${setAsideLabels.join(", ") || "bills that aren't monthly"}, earmarked in savings until the bill comes${setAsideNotMoved > 0.5 ? `; ${money(setAsideNotMoved)} of it is still in checking, so move it over` : ""}. ` : ""}
         {pendingPlanned > 0 ? `${money(pendingPlanned)} of planned bills isn't recorded yet and is held back from what's left. ` : ""}

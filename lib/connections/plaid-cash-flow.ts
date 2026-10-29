@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { BankTransaction } from "./plaid";
 import { getDismissedPlaidIds, getSeenTransferIds, markTransfersSeen } from "./plaid";
 import { findDuplicateAccounts } from "./account-dedupe";
+import { kvSet } from "@/lib/kv";
 import {
   cleanMerchant, findDuplicates, suggestBucket, looksLikeSave, looksLikeTransfer, looksLikeRefund,
   type CashFlowTransaction, type MerchantRule, type ParsedTxn, type TxnKind,
@@ -207,6 +208,27 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       synthetic.push({ id: `tosavings:${t.id}`, t, amount: Math.abs(t.amount), merchant: `Went straight to savings: ${label}` });
     }
   }
+
+  // ── Invested, per month ──────────────────────────────────────────────────────
+  // How much of what was saved went into investing: money moving from a bank account into
+  // a brokerage/retirement account (paired to a linked investment account, or Plaid's
+  // "transfer out to investments" with no linked bank on the other side), minus money
+  // coming back out of investing into a bank account. Brokerage accounts themselves are
+  // skipped from Cash Flow, so this is read from the bank side of each move.
+  const investedByMonth: Record<string, number> = {};
+  for (const t of posted) {
+    const ym = t.date.slice(0, 7);
+    const dest = destOf.get(t.id);
+    if (t.amount > 0) {
+      const intoInvesting = dest
+        ? acctById.get(dest)?.type === "investment"
+        : t.detailed === "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS";
+      if (intoInvesting) investedByMonth[ym] = (investedByMonth[ym] ?? 0) + t.amount;
+    } else if (t.detailed === "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS" && !pairedInflows.some((p) => p.id === t.id)) {
+      investedByMonth[ym] = (investedByMonth[ym] ?? 0) + t.amount; // negative: money back out
+    }
+  }
+  await kvSet(`investflow:${userId}`, { months: Object.fromEntries(Object.entries(investedByMonth).map(([k, v]) => [k, Math.round(v * 100) / 100])) });
 
   // Tell the user about transfers the first time they're found, not on every sync.
   const seen = await getSeenTransferIds(userId);

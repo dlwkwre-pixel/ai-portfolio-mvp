@@ -1072,7 +1072,7 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], investedByMonth = {}, ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
@@ -1081,6 +1081,7 @@ export default function CashFlowOS({
   monthCloses?: MonthCloseRow[];
   bankLink?: BankLinkInfo | null;
   dismissedAlerts?: string[];
+  investedByMonth?: Record<string, number>; // "YYYY-MM" → net moved into investing (bank sync)
   ratedDebts?: RatedAccount[];
   netWorthHistory?: NetWorthSnapshot[];
   budgetHistory: BudgetHistoryEntry[];
@@ -2186,7 +2187,7 @@ export default function CashFlowOS({
       <SinkingFunds funds={sinkingFunds} isPrivate={isPrivate} />
       <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
         setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
-        saved={savedBeyondReserve} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
+        saved={savedBeyondReserve} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund

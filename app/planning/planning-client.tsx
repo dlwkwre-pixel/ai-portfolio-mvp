@@ -3093,6 +3093,7 @@ type Props = {
   monthCloses: MonthCloseRow[];
   bankLink: BankLinkInfo | null;
   dismissedAlerts?: string[];
+  investedByMonth?: Record<string, number>;
   accountRates?: Record<string, number>;
   cashBenchmark?: CashBenchmark | null;
   budgetHistory: BudgetHistoryEntry[];
@@ -3117,7 +3118,7 @@ const ATLAS_THINKING = [
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, dismissedAlerts = [], accountRates = {}, cashBenchmark = null, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, monthCloses, bankLink, dismissedAlerts = [], investedByMonth = {}, accountRates = {}, cashBenchmark = null, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -6211,6 +6212,7 @@ export default function PlanningClient({
             monthCloses={monthCloses}
             bankLink={bankLink}
             dismissedAlerts={dismissedAlerts}
+            investedByMonth={investedByMonth}
             ratedDebts={balanceItems.filter((i) => i.is_liability).map((i) => ({ id: i.id, label: i.label, balance: i.value, rate: accountRates[i.id] ?? null, revolving: i.category === "credit_card" }))}
             netWorthHistory={netWorthHistory}
             budgetHistory={budgetHistory}
