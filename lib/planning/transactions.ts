@@ -115,6 +115,13 @@ export function merchantKey(merchant: string): string {
   return words.length > 1 && /\b(gas|gasoline|fuel|car wash)\b/.test(words.join(" ")) ? `${key}:fuel` : key;
 }
 
+// Paying a person says nothing about what the money was for: every Zelle shares one merchant
+// key, so a rule would sort a tire inflator and a dinner split the same way. These always
+// wait for the user to pick a bucket, and picking one is never remembered.
+export function isPersonToPerson(merchant: string): boolean {
+  return /\b(zelle|venmo|cash\s*app)\b/i.test(merchant);
+}
+
 // ── Transfers / refunds ─────────────────────────────────────────────────────
 
 // Money moving between the user's own accounts — not spending, not income. Deliberately
@@ -426,7 +433,7 @@ export function suggestBucket(
   items: BucketItem[],
   rules: MerchantRule[],
 ): string | null {
-  if (t.kind === "transfer" || t.kind === "save") return null;
+  if (t.kind === "transfer" || t.kind === "save" || isPersonToPerson(t.merchant)) return null;
   const key = merchantKey(t.merchant);
   const wantType = t.kind === "income" ? "income" : "expense";
   // Same type only: a "zelle → Food & Dining" spending rule says nothing about Zelle coming IN.
@@ -643,7 +650,7 @@ export function guessBucket(
   t: { merchant: string; kind: TxnKind; category?: string },
   expenseItems: { id: string; label: string; category?: string | null }[],
 ): string | null {
-  if (t.kind !== "spend" && t.kind !== "refund") return null;
+  if ((t.kind !== "spend" && t.kind !== "refund") || isPersonToPerson(t.merchant)) return null;
   const cat = t.category ?? getCategoryForExpense(t.merchant);
   const inCat = expenseItems.filter((i) => categoryOf(i) === cat);
   if (inCat.length > 0) return (inCat.find((i) => i.label.toLowerCase() === cat.toLowerCase()) ?? inCat[0]).id;

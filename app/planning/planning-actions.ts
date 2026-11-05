@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
-import { merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
+import { isPersonToPerson, merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 import { isValidFrequency, frequencyForInterval, type BillMode } from "@/lib/planning/frequency";
 import { dismissPlaidTransaction } from "@/lib/connections/plaid";
@@ -1355,6 +1355,7 @@ export async function saveImportedTransactions(input: {
   if (error) return { error: error.message };
 
   const ruleRows = (input.remember ?? [])
+    .filter((r) => !isPersonToPerson(String(r.merchant ?? "")))
     .map((r) => ({ key: merchantKey(String(r.merchant ?? "")), itemId: resolved.get(r.bucket) ?? null }))
     .filter((r): r is { key: string; itemId: string } => !!r.key && !!r.itemId);
   if (ruleRows.length > 0) {
@@ -1426,7 +1427,7 @@ export async function updateTransactionBucket(
   }
 
   let ids = [txn.id];
-  if (remember) {
+  if (remember && !isPersonToPerson(txn.merchant)) {
     const key = merchantKey(txn.merchant);
     const { data: sameMonth } = await supabase
       .from("cash_flow_transactions").select("id, merchant")
@@ -1575,7 +1576,7 @@ export async function bulkSetTransactionBuckets(
       .in("id", ids).eq("user_id", user.id);
     if (error) return { error: error.message };
     updated += ids.length;
-    const rules = Array.from(new Set(ids.map((id) => merchantKey(merchantById.get(id) ?? "")).filter(Boolean)))
+    const rules = Array.from(new Set(ids.filter((id) => !isPersonToPerson(merchantById.get(id) ?? "")).map((id) => merchantKey(merchantById.get(id) ?? "")).filter(Boolean)))
       .map((merchant_key) => ({ user_id: user.id, merchant_key, cash_flow_item_id: itemId, updated_at: new Date().toISOString() }));
     if (rules.length > 0) await supabase.from("cash_flow_merchant_rules").upsert(rules, { onConflict: "user_id,merchant_key" });
   }
