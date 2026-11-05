@@ -4,7 +4,7 @@ import { getDismissedPlaidIds, getSeenTransferIds, markTransfersSeen } from "./p
 import { findDuplicateAccounts } from "./account-dedupe";
 import { kvSet } from "@/lib/kv";
 import {
-  cleanMerchant, findDuplicates, suggestBucket, looksLikeSave, looksLikeTransfer, looksLikeRefund,
+  cleanMerchant, findDuplicates, merchantKey, suggestBucket, looksLikeSave, looksLikeTransfer, looksLikeRefund,
   type CashFlowTransaction, type MerchantRule, type ParsedTxn, type TxnKind,
 } from "@/lib/planning/transactions";
 import { getCategoryForExpense } from "@/lib/planning/expense-categories";
@@ -163,6 +163,31 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     }
   }
 
+  // Which linked account a plain transfer landed in, when the other side is visible: both
+  // sides are already "transfer", so the income pairing above never sees them.
+  const usedIn = new Set(pairedInflows.map((t) => t.id));
+  for (const out of posted) {
+    if (out.amount <= 0 || destOf.has(out.id) || classified.get(out.id)!.kind !== "transfer") continue;
+    const inflow = posted.find((i) => i.amount < 0 && !usedIn.has(i.id) && i.accountId !== out.accountId
+      && classified.get(i.id)!.kind === "transfer" && Math.abs(i.amount + out.amount) < 0.005 && dayDiff(i.date, out.date) <= 4);
+    if (!inflow) continue;
+    usedIn.add(inflow.id);
+    destOf.set(out.id, inflow.accountId);
+  }
+
+  // Banks can report a real payment as an account transfer ("To Whitney", which is rent).
+  // Once the user has sorted that payee into a budget line, the rule wins: it's spending.
+  // Only when no linked account received the money, and never for card or investing moves.
+  for (const t of posted) {
+    if (t.amount <= 0 || destOf.has(t.id) || classified.get(t.id)!.kind !== "transfer") continue;
+    if ((t.detailed ?? "").startsWith("LOAN_PAYMENTS") || SAVE_DETAILED.has(t.detailed ?? "")) continue;
+    const key = merchantKey(t.merchant || cleanMerchant(t.name));
+    const rule = ruleList.find((r) => r.merchant_key === key);
+    if (rule && bucketItems.some((i) => i.id === rule.cash_flow_item_id && i.type === "expense")) {
+      classified.set(t.id, { kind: "spend", category: categoryFor(t) });
+    }
+  }
+
   // ── Net savings ──────────────────────────────────────────────────────────────
   // "Saved" should be money that ENTERED savings/investing minus money that LEFT it for
   // spending, not every move that touches a savings account:
@@ -195,7 +220,9 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
         : SAVE_DETAILED.has(t.detailed ?? "") || /brokerage|invest|\bira\b|roth/i.test(`${t.merchant ?? ""} ${t.name}`);
       // Paying a credit card from savings settles purchases already counted as spending when
       // they were made (often last month) — a transfer, not money taken out of savings.
-      const cardPayment = (t.detailed ?? "").startsWith("LOAN_PAYMENTS") || (dest ? acctById.get(dest)?.type === "credit" : false);
+      // The account it landed in beats Plaid's label ("To Chase" tagged as a card payment
+      // but received by Chase checking is money leaving savings).
+      const cardPayment = dest ? acctById.get(dest)?.type === "credit" : (t.detailed ?? "").startsWith("LOAN_PAYMENTS");
       if (c.kind === "save" || (c.kind === "transfer" && (toSavingsOrInvesting || cardPayment))) {
         classified.set(t.id, { kind: "transfer" });
       } else if (c.kind === "transfer") {
@@ -254,7 +281,10 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
         await admin.from("cash_flow_transactions")
           .update({
             txn_date: t.date, period_year: Number(t.date.slice(0, 4)), period_month: Number(t.date.slice(5, 7)), amount: signed,
-            ...(have.direction !== direction ? { direction, cash_flow_item_id: null } : {}),
+            ...(have.direction !== direction ? {
+              direction,
+              cash_flow_item_id: kind === "spend" ? suggestBucket({ merchant: have.merchant, kind, category }, bucketItems, ruleList) : null,
+            } : {}),
             updated_at: new Date().toISOString(),
           })
           .eq("id", have.id).eq("user_id", userId);

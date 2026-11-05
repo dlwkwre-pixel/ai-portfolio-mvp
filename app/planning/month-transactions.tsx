@@ -222,6 +222,8 @@ export default function MonthTransactions({
   // One transaction row — used by "To review" and by the full list popup.
   function renderRow(t: CashFlowTransaction, withReview: boolean) {
     const pool = t.direction === "in" ? incomeItems : expenseItems;
+    // Money out of savings can turn out to be a payment, so it gets a bucket picker too.
+    const outOfSavings = t.direction === "save" && t.amount < 0;
     const isRefund = t.direction === "out" && t.amount < 0;
     const canMarkReviewed = withReview && t.source === "plaid" && t.reviewed_at === null && !(t.direction === "out" && !t.cash_flow_item_id);
     // Twice-a-month pay looks like a duplicate (same name, same amount): say which one this is.
@@ -252,14 +254,12 @@ export default function MonthTransactions({
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
             {`${MONTH_NAMES[t.period_month - 1]} ${Number(t.txn_date.slice(8, 10))}${searchAll && t.period_year !== selYear ? ` '${String(t.period_year).slice(2)}` : ""}`}
           </span>
-          {t.direction === "save" ? (
-            <span style={{ fontSize: "var(--text-xs)", color: t.amount < 0 ? "var(--amber)" : "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-              {t.amount < 0 ? "Taken out of savings (lowers saved)" : "Saved / invested"}
-            </span>
+          {t.direction === "save" && !outOfSavings ? (
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Saved / invested</span>
           ) : (
             <select value={t.cash_flow_item_id ?? ""} disabled={pending} onChange={(e) => handleBucket(t, e.target.value)} aria-label={`Bucket for ${t.merchant}`}
               style={{ ...selectStyle, borderColor: t.direction === "out" && !t.cash_flow_item_id ? "var(--amber)" : "var(--border-subtle)", color: t.cash_flow_item_id ? "var(--text-primary)" : t.direction === "out" ? "var(--amber)" : "var(--text-secondary)" }}>
-              <option value="">{t.direction === "in" ? "Extra, one-time" : "Needs a bucket"}</option>
+              <option value="">{t.direction === "in" ? "Extra, one-time" : outOfSavings ? "Taken out of savings (not a bill)" : "Needs a bucket"}</option>
               {pool.length > 0 && (
                 <optgroup label={t.direction === "in" ? "Regular pay (replaces expected)" : "Your budget"}>
                   {pool.map((i) => <option key={i.id} value={i.id}>{t.direction === "in" ? `Pay from ${i.label}` : i.label}</option>)}
@@ -269,7 +269,7 @@ export default function MonthTransactions({
                 <option value={NEW_PAYCHECK_BUCKET}>Regular paycheck (replaces estimate)</option>
               )}
               <option value="__transfer__">Transfer between my own accounts (not counted)</option>
-              {t.direction === "out" && missingCategories.length > 0 && (
+              {t.direction !== "in" && missingCategories.length > 0 && (
                 <optgroup label="Create new budget line">
                   {missingCategories.map((c) => <option key={c} value={`new:${c}`}>New: {c}</option>)}
                 </optgroup>

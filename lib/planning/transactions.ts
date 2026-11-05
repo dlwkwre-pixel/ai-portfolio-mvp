@@ -106,6 +106,8 @@ export function cleanMerchant(description: string): string {
 export function merchantKey(merchant: string): string {
   const words = cleanMerchant(merchant).toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean)
     .filter((w) => !["the", "inc", "llc", "co", "corp", "store", "stores"].includes(w));
+  // Banks describe transfers as "To Whitney" / "From Chase": the payee is the next word.
+  if (words.length > 1 && (words[0] === "to" || words[0] === "from")) words.shift();
   if (words.length === 0) return normLabel(merchant);
   if (words[0].length >= 4 || words.length === 1) return words[0];
   return words[0] + words[1];
@@ -424,10 +426,11 @@ export function suggestBucket(
 ): string | null {
   if (t.kind === "transfer" || t.kind === "save") return null;
   const key = merchantKey(t.merchant);
-  const rule = rules.find((r) => r.merchant_key === key);
-  if (rule && items.some((i) => i.id === rule.cash_flow_item_id)) return rule.cash_flow_item_id;
-
   const wantType = t.kind === "income" ? "income" : "expense";
+  // Same type only: a "zelle → Food & Dining" spending rule says nothing about Zelle coming IN.
+  const rule = rules.find((r) => r.merchant_key === key);
+  if (rule && items.some((i) => i.id === rule.cash_flow_item_id && i.type === wantType)) return rule.cash_flow_item_id;
+
   const pool = items.filter((i) => i.type === wantType);
   const byName = pool.find((i) => {
     const k = merchantKey(i.label);

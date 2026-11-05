@@ -19,6 +19,8 @@ export type MonthCloseFacts = {
   paychecksRecorded: number;
   spendingRecorded: number;
   spendingAssumed: number;
+  setAside: number;        // this month's share of bills that aren't monthly
+  unreviewedCount: number; // bank rows nobody has looked at, often posted after month end
   transactionCount: number;
   unrecordedCount: number;
   unsortedCount: number;
@@ -47,13 +49,17 @@ export default function MonthCloseCard({
   const name = MONTH_NAMES[facts.month - 1];
   const money = (n: number) => (isPrivate ? "••••" : `$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
 
+  const kept = facts.income - facts.spendingRecorded - facts.setAside - facts.spendingAssumed;
   if (closed) {
+    // Live numbers, not the snapshot from closing: bank rows can post days later.
     return (
       <div className="cfo-zone" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "10px 14px", marginBottom: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--green-border)", background: "var(--green-bg)" }}>
         <span style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0 }}>
-          <strong>{name} closed ✓</strong> You kept <span style={{ fontFamily: "var(--font-mono)" }}>{money(closed.income - closed.spending)}</span>
-          {closed.saved > 0 && <>{" "}and moved <span style={{ fontFamily: "var(--font-mono)" }}>{money(closed.saved)}</span> to savings</>}.
+          <strong>{name} closed ✓</strong> You kept <span style={{ fontFamily: "var(--font-mono)" }}>{money(kept)}</span>
+          {facts.setAside > 0.5 && <>{" "}after <span style={{ fontFamily: "var(--font-mono)" }}>{money(facts.setAside)}</span> set aside for bills</>}.
+          {facts.unreviewedCount > 0 && <>{` ${facts.unreviewedCount} bank transaction${facts.unreviewedCount !== 1 ? "s" : ""} still to review.`}</>}
         </span>
+        {facts.unreviewedCount > 0 && <Button size="sm" onClick={onGoToMonth}>{`Review ${name}`}</Button>}
         <button type="button" disabled={pending}
           onClick={() => startTransition(async () => { await reopenCashFlowMonth(facts.year, facts.month); router.refresh(); })}
           style={{ background: "none", border: "none", color: "var(--text-secondary)", textDecoration: "underline", fontSize: "var(--text-xs)", fontFamily: "var(--font-body)", cursor: "pointer", minHeight: "32px" }}>
@@ -63,7 +69,6 @@ export default function MonthCloseCard({
     );
   }
 
-  const kept = facts.income - facts.spendingRecorded - facts.spendingAssumed;
   const unallocated = kept - facts.saved;
   const checks: Check[] = [
     facts.paychecksRecorded > 0
@@ -86,7 +91,7 @@ export default function MonthCloseCard({
     startTransition(async () => {
       const res = await closeCashFlowMonth({
         year: facts.year, month: facts.month, income: facts.income,
-        spending: facts.spendingRecorded + facts.spendingAssumed, saved: facts.saved,
+        spending: facts.spendingRecorded + facts.setAside + facts.spendingAssumed, saved: facts.saved,
       });
       if (res.error) { setError(res.error); return; }
       router.refresh();

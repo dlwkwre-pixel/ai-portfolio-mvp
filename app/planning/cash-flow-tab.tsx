@@ -16,7 +16,7 @@ import {
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
 } from "./planning-shared";
 import { computeAvailableToInvest, nextOccurrenceOnOrAfter, toDateOnly } from "@/lib/planning/cash-flow-forecast";
-import { computeMonthIncome, findRecurringCharges, recentPaycheck, recordedIncomeByMonth, type CashFlowTransaction } from "@/lib/planning/transactions";
+import { computeMonthIncome, findRecurringCharges, isSavingsAdjustment, recentPaycheck, recordedIncomeByMonth, type CashFlowTransaction } from "@/lib/planning/transactions";
 import UnrecordedBills, { type UnrecordedLine } from "./unrecorded-bills";
 import MonthCloseCard, { type MonthCloseRow } from "./month-close-card";
 import RecurringChargesCard from "./recurring-charges-card";
@@ -1311,7 +1311,8 @@ export default function CashFlowOS({
       year: prevYear, month: prevMonth,
       income: inc.total, expectedIncome: effectiveIncome,
       paychecksRecorded: inc.recordedCount + inc.extraCount,
-      spendingRecorded: blend.recordedTotal, spendingAssumed: blend.assumedTotal,
+      spendingRecorded: blend.recordedTotal, spendingAssumed: blend.assumedTotal, setAside: blend.setAsideTotal,
+      unreviewedCount: monthTxns.filter(t => t.source === "plaid" && t.reviewed_at === null && !isSavingsAdjustment(t)).length,
       transactionCount: monthTxns.length,
       unrecordedCount: unrecordedLinesFor(prevYear, prevMonth).length,
       unsortedCount: unsorted.length,

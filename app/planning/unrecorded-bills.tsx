@@ -47,9 +47,11 @@ export default function UnrecordedBills({
   // elsewhere — usually the bill itself under another name ("Whitney At The Heights" for
   // Rent). Using it beats "Paid", which would add the same bill a second time.
   function bankMatch(line: UnrecordedLine): CashFlowTransaction | null {
-    return transactions.find((t) => t.source === "plaid" && t.direction === "out" && !isSavingsAdjustment(t)
+    // Includes money out of savings: the bank may call the bill a transfer ("To Whitney").
+    return transactions.find((t) => t.source === "plaid" && !isSavingsAdjustment(t)
+      && (t.direction === "out" || (t.direction === "save" && t.amount < 0))
       && t.period_year === selYear && t.period_month === selMonth && t.cash_flow_item_id !== line.id
-      && Math.abs(t.amount - line.planned) <= line.planned * 0.03) ?? null;
+      && Math.abs(Math.abs(t.amount) - line.planned) <= line.planned * 0.03) ?? null;
   }
   function applyMatch(line: UnrecordedLine, t: CashFlowTransaction) {
     setError(null);
@@ -82,7 +84,7 @@ export default function UnrecordedBills({
         <div key={l.id} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "8px 10px", border: "1px solid var(--amber)", borderRadius: "var(--radius-sm)", background: "var(--bg-surface)", minWidth: 0 }}>
           <div style={{ flex: "1 1 180px", minWidth: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.45 }}>
             <strong style={{ color: "var(--text-primary)" }}>{l.label}</strong>
-            {`: your bank shows ${match.merchant} for ${isPrivate ? "••••" : `$${match.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} on ${MONTH_NAMES[match.period_month - 1].slice(0, 3)} ${Number(match.txn_date.slice(8, 10))}. Is that it?`}
+            {`: your bank shows ${match.merchant} for ${isPrivate ? "••••" : `$${Math.abs(match.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} on ${MONTH_NAMES[match.period_month - 1].slice(0, 3)} ${Number(match.txn_date.slice(8, 10))}. Is that it?`}
           </div>
           <button type="button" onClick={() => applyMatch(l, match)} disabled={pending}
             style={{ flexShrink: 0, minHeight: "34px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--green-border)", background: "var(--green-bg)", color: "var(--green)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>

@@ -1385,12 +1385,45 @@ export async function updateTransactionBucket(
   if (!user) return { error: "Not authenticated." };
 
   const { data: txn } = await supabase
-    .from("cash_flow_transactions").select("id, merchant, period_year, period_month, direction")
+    .from("cash_flow_transactions").select("id, merchant, description, txn_date, period_year, period_month, direction, amount, source, external_id")
     .eq("id", id).eq("user_id", user.id).maybeSingle();
   if (!txn) return { error: "Transaction not found." };
 
   const itemId = bucket ? (await resolveBuckets(supabase, user.id, [bucket])).get(bucket) ?? null : null;
   if (bucket && !itemId) return { error: "That budget item no longer exists." };
+
+  // Money taken out of savings that was really a payment (rent the bank calls a transfer):
+  // it becomes spending in that line, still counted as out of savings via the same
+  // bookkeeping row a card or debit purchase from savings gets. The rule is what keeps it
+  // that way on later syncs, and sorts this payee automatically from now on.
+  if (txn.direction === "save" && Number(txn.amount) < 0) {
+    if (!itemId) return { moved: 0 };
+    const amount = Math.abs(Number(txn.amount));
+    const { error: convertError } = await supabase.from("cash_flow_transactions")
+      .update({
+        direction: "out", amount, cash_flow_item_id: itemId, updated_at: new Date().toISOString(),
+        ...(markReviewed ? { reviewed_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", txn.id).eq("user_id", user.id);
+    if (convertError) return { error: convertError.message };
+    const key = merchantKey(txn.merchant);
+    if (key) {
+      await supabase.from("cash_flow_merchant_rules").upsert(
+        { user_id: user.id, merchant_key: key, cash_flow_item_id: itemId, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,merchant_key" },
+      );
+    }
+    if (txn.source === "plaid" && txn.external_id) {
+      const label = `Paid from savings: ${txn.merchant}`;
+      await supabase.from("cash_flow_transactions").insert({
+        user_id: user.id, txn_date: txn.txn_date, period_year: txn.period_year, period_month: txn.period_month,
+        description: label, merchant: label.slice(0, 60), amount: -amount, direction: "save",
+        cash_flow_item_id: null, source: "plaid", external_id: `fromsavings:${txn.external_id}`, reviewed_at: new Date().toISOString(),
+      }).then((r) => r, () => ({}));
+    }
+    revalidatePath("/planning");
+    return { moved: 1 };
+  }
 
   let ids = [txn.id];
   if (remember) {
