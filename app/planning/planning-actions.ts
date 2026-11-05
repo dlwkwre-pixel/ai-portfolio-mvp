@@ -1704,3 +1704,23 @@ export async function setAccountRate(itemRef: string, ratePct: number | null): P
   revalidatePath("/planning");
   return {};
 }
+
+// A planned bill that simply wasn't charged this month: records $0 so the page stops
+// assuming it. A real charge landing later takes over on its own (transactions win over
+// logged amounts), and the $0 can be deleted from the month's list.
+export async function markBillNotCharged(itemId: string, year: number, month: number): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return { error: "Invalid month." };
+  const { data: item } = await supabase
+    .from("cash_flow_items").select("id, label, type").eq("id", itemId).eq("user_id", user.id).maybeSingle();
+  if (!item || item.type !== "expense") return { error: "Budget item not found." };
+  const { error } = await supabase.from("expense_actuals").upsert(
+    { user_id: user.id, cash_flow_item_id: item.id, label: item.label, period_year: year, period_month: month, actual_amount: 0, notes: "Not charged this month", updated_at: new Date().toISOString() },
+    { onConflict: "user_id,cash_flow_item_id,period_year,period_month" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}

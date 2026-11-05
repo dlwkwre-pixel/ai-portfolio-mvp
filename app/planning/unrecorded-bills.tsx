@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordBillPaid, updateTransactionBucket } from "./planning-actions";
+import { markBillNotCharged, recordBillPaid, updateTransactionBucket } from "./planning-actions";
 import { isSavingsAdjustment, type CashFlowTransaction } from "@/lib/planning/transactions";
 import { MONTH_NAMES } from "./planning-shared";
 
@@ -64,6 +64,17 @@ export default function UnrecordedBills({
     });
   }
 
+  function notCharged(line: UnrecordedLine) {
+    setError(null);
+    setBusyId(line.id);
+    startTransition(async () => {
+      const res = await markBillNotCharged(line.id, selYear, selMonth);
+      setBusyId(null);
+      if (res.error) { setError(res.error); return; }
+      router.refresh();
+    });
+  }
+
   function record(line: UnrecordedLine) {
     const raw = amounts[line.id];
     const amount = raw !== undefined && raw !== "" ? Number(raw) : line.planned;
@@ -94,8 +105,8 @@ export default function UnrecordedBills({
       );
     }
     return (
-    <div key={l.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", background: "var(--bg-surface)", minWidth: 0 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <div key={l.id} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", padding: "8px 10px", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", background: "var(--bg-surface)", minWidth: 0 }}>
+      <div style={{ flex: "1 1 90px", minWidth: 0 }}>
         <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.label}</div>
         {l.dueDay != null && <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{`due the ${l.dueDay}${ordinal(l.dueDay)}`}</div>}
       </div>
@@ -110,6 +121,12 @@ export default function UnrecordedBills({
         style={{ flexShrink: 0, minHeight: "34px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--green-border)", background: "var(--green-bg)", color: "var(--green)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
         {busyId === l.id ? "…" : verb}
       </button>
+      {l.fixed && (
+        <button type="button" onClick={() => notCharged(l)} disabled={pending}
+          style={{ flexShrink: 0, minHeight: "34px", padding: "0 8px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", cursor: "pointer", whiteSpace: "nowrap" }}>
+          Not charged
+        </button>
+      )}
     </div>
     );
   };

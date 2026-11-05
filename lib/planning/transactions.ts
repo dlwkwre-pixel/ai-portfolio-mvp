@@ -109,8 +109,10 @@ export function merchantKey(merchant: string): string {
   // Banks describe transfers as "To Whitney" / "From Chase": the payee is the next word.
   if (words.length > 1 && (words[0] === "to" || words[0] === "from")) words.shift();
   if (words.length === 0) return normLabel(merchant);
-  if (words[0].length >= 4 || words.length === 1) return words[0];
-  return words[0] + words[1];
+  const key = words[0].length >= 4 || words.length === 1 ? words[0] : words[0] + words[1];
+  // Grocery stores that also sell gas ("H-E-B" vs "H-E-B Car Wash", "Costco" vs "Costco Gas"):
+  // the fuel side is its own merchant, so sorting one doesn't drag the other along.
+  return words.length > 1 && /\b(gas|gasoline|fuel|car wash)\b/.test(words.join(" ")) ? `${key}:fuel` : key;
 }
 
 // ── Transfers / refunds ─────────────────────────────────────────────────────
