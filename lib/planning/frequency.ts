@@ -118,5 +118,7 @@ export function billPlanForMonth(
   }
   // spread (default, and the fallback when no due date is set)
   const perMonth = amount / n;
-  return { plan: perMonth, assumed: perMonth, askForPayment: due === true, paymentAmount: amount, countActual: (a) => a / n, periodic: true, due };
+  // No due date (a travel fund): the month's share accrues whether or not money was spent,
+  // and spending draws on what's built up. With a due date, the payment is spread instead.
+  return { plan: perMonth, assumed: perMonth, askForPayment: due === true, paymentAmount: amount, countActual: due === null ? () => perMonth : (a) => a / n, periodic: true, due };
 }

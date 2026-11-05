@@ -16,6 +16,7 @@ export type SinkingFund = {
   shouldHave: number | null;   // what should be saved toward it by now (null: no due date set)
   next: { year: number; month: number } | null;
   dueThisMonth: boolean;
+  flexible?: { built: number; spent: number } | null; // no due date: a running balance
 };
 
 export default function SinkingFunds({ funds, isPrivate }: { funds: SinkingFund[]; isPrivate: boolean }) {
@@ -39,12 +40,19 @@ export default function SinkingFunds({ funds, isPrivate }: { funds: SinkingFund[
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{f.label}</div>
             <div style={{ fontSize: "var(--text-2xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-              {`${money(f.bill)} every ${f.everyMonths} months`}
-              {f.dueThisMonth ? " · due this month: pay it from the fund" : f.next ? ` · next due ${MONTH_NAMES[f.next.month - 1].slice(0, 3)} ${f.next.year}` : " · set a due month in Edit my plan to track it"}
+              {f.flexible ? "Used when it comes up" : `${money(f.bill)} every ${f.everyMonths} months`}
+              {f.flexible ? "" : f.dueThisMonth ? " · due this month: pay it from the fund" : f.next ? ` · next due ${MONTH_NAMES[f.next.month - 1].slice(0, 3)} ${f.next.year}` : " · set a due month in Edit my plan to track it"}
             </div>
           </div>
           <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>{`${money(f.perMonth)}/mo`}</div>
+            {f.flexible && (
+              <div style={{ fontSize: "var(--text-2xs)", fontFamily: "var(--font-mono)", color: f.flexible.built - f.flexible.spent < 0 ? "var(--amber)" : "var(--text-tertiary)" }}>
+                {f.flexible.built - f.flexible.spent < 0
+                  ? `${money(f.flexible.spent - f.flexible.built)} over what's built up`
+                  : `${money(f.flexible.built - f.flexible.spent)} built up${f.flexible.spent > 0 ? ` after ${money(f.flexible.spent)} spent` : ""}`}
+              </div>
+            )}
             {f.shouldHave !== null && !f.dueThisMonth && (
               <div style={{ fontSize: "var(--text-2xs)", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{`${money(f.shouldHave)} saved by now`}</div>
             )}

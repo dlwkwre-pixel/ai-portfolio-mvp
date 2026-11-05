@@ -614,6 +614,7 @@ const CATEGORY_BUCKET: Record<string, SpendBucket> = {
   Travel: "wants",
   Fitness: "wants",
   Subscriptions: "wants",
+  Shopping: "wants",
   Other: "wants",
 };
 function bucketForCategory(category: string): SpendBucket {
@@ -633,6 +634,7 @@ const CF_CAT_COLORS: Record<string, string> = {
   "Entertainment":  "oklch(0.62 0.24 328)",
   "Travel":         "oklch(0.70 0.18 198)",
   "Subscriptions":  "oklch(0.62 0.19 270)",
+  "Shopping":       "oklch(0.68 0.17 15)",
   "Childcare":      "oklch(0.72 0.17 42)",
   "Other":          "oklch(0.55 0.05 258)",
 };
@@ -1159,11 +1161,26 @@ export default function CashFlowOS({
     const n = intervalMonths(i.frequency);
     if (!line.periodic || !n || i.bill_mode === "when_paid") return [];
     const since = monthsSinceDue(i, selYear, selMonth);
+    // No due date: a running balance. It starts the month this schedule took effect, so
+    // earlier charges (a flight before the fund existed) don't count against it.
+    let flexible: SinkingFund["flexible"] = null;
+    if (since === null) {
+      const starts = budgetHistory.filter((h) => h.item_id === i.id && h.frequency === i.frequency)
+        .map((h) => h.effective_year * 12 + (h.effective_month - 1));
+      const start = starts.length > 0 ? Math.min(...starts) : selYear * 12 + (selMonth - 1);
+      const months = Math.max(0, selYear * 12 + (selMonth - 1) - start + 1);
+      const spent = expenseActuals
+        .filter((a) => a.cash_flow_item_id === i.id && a.period_year * 12 + (a.period_month - 1) >= start
+          && a.period_year * 12 + (a.period_month - 1) <= selYear * 12 + (selMonth - 1))
+        .reduce((s, a) => s + a.actual_amount, 0);
+      flexible = { built: months * line.plan, spent };
+    }
     return [{
       id: i.id, label: i.label, perMonth: line.plan, bill: line.paymentAmount, everyMonths: n,
       shouldHave: since === null ? null : since * line.plan,
       next: nextDueMonth(i, selYear, selMonth),
       dueThisMonth: line.due === true,
+      flexible,
     }];
   });
 

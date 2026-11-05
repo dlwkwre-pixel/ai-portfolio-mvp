@@ -14,6 +14,7 @@ export const EXPENSE_CATEGORIES: { label: string; keywords: string[]; emoji: str
   { label: "Travel",         keywords: ["travel", "vacation", "hotel", "flight", "airbnb", "trip", "cruise", "delta", "united", "southwest", "american airlines", "marriott", "hilton", "hyatt", "expedia", "booking", "vrbo", "kayak", "priceline"],                                                          emoji: "✈️" },
   { label: "Subscriptions",  keywords: ["subscription", "membership", "amazon prime", "premium", "software", "saas", "monthly service", "claude", "chatgpt", "openai", "anthropic", "google one", "icloud", "microsoft 365", "adobe", "notion", "figma", "dropbox", "lastpass", "1password", "nordvpn", "expressvpn"],                                                                                           emoji: "📱" },
   { label: "Childcare",      keywords: ["childcare", "daycare", "school", "tuition", "babysitter", "nanny", "kids", "children", "after school", "preschool", "montessori"],                       emoji: "👶" },
+  { label: "Shopping",       keywords: ["shopping", "amazon", "target", "clothing", "apparel", "vuori", "nordstrom", "macy", "best buy", "etsy", "marshalls", "tj maxx"], emoji: "🛍️" },
   { label: "Other",          keywords: [],                                                                                                                                                         emoji: "📦" },
 ];
 

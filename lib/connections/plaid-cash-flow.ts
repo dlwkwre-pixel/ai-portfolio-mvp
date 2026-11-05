@@ -41,6 +41,7 @@ const PFC_PRIMARY_CATEGORY: Record<string, string> = {
   FOOD_AND_DRINK: "Food & Dining",
   TRANSPORTATION: "Transportation",
   TRAVEL: "Travel",
+  GENERAL_MERCHANDISE: "Shopping",
   ENTERTAINMENT: "Entertainment",
   MEDICAL: "Healthcare",
   HOME_IMPROVEMENT: "Housing",

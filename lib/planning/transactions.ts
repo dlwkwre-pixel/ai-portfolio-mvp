@@ -455,9 +455,11 @@ export function suggestBucket(
   }
 
   const cat = t.category ?? getCategoryForExpense(t.merchant);
+  // Budgets without a Shopping line keep sending this spending to Other, as they always did.
   const inCat = pool.filter((i) => categoryOf(i) === cat);
-  if (inCat.length === 0) return null;
-  return (inCat.find((i) => i.label.toLowerCase() === cat.toLowerCase()) ?? inCat[0]).id;
+  const candidates = inCat.length === 0 && cat === "Shopping" ? pool.filter((i) => categoryOf(i) === "Other") : inCat;
+  if (candidates.length === 0) return null;
+  return (candidates.find((i) => i.label.toLowerCase() === cat.toLowerCase()) ?? candidates[0]).id;
 }
 
 // ── Rollup: transactions → monthly actuals ──────────────────────────────────
