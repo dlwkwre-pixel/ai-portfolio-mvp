@@ -152,7 +152,7 @@ export default function MonthTransactions({
   // the single source, so old hand-logged totals for the month can go in one tap.
   const bankCoversMonth = month.some((t) => t.source === "plaid");
   function handleReplaceTotals() {
-    if (!confirm(`Remove ${loggedTotals.length} old total${loggedTotals.length !== 1 ? "s" : ""} for ${MONTH_NAMES[selMonth - 1]} and use your bank's transactions instead? Your plan isn't affected.`)) return;
+    if (!confirm(`Remove ${loggedTotals.length} logged total${loggedTotals.length !== 1 ? "s" : ""} for ${MONTH_NAMES[selMonth - 1]} and use your bank's transactions instead? Your plan isn't affected.`)) return;
     startTransition(async () => {
       for (const a of loggedTotals) {
         const res = await deleteExpenseActual(a.id);
@@ -165,7 +165,7 @@ export default function MonthTransactions({
   const totalsList = loggedTotals.length > 0 && (
     <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
       <div style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-        {`Totals logged the old way for ${MONTH_NAMES[selMonth - 1]}. They count until that bucket gets transactions.`}
+        {`Marked paid or logged by hand for ${MONTH_NAMES[selMonth - 1]}. Each counts until a real transaction lands in that bucket, then it's replaced.`}
         {bankCoversMonth && " Your bank already has this month's transactions, so these may double count spending the bank put in a different bucket."}
       </div>
       {bankCoversMonth && (

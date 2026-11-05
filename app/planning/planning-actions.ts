@@ -1501,10 +1501,11 @@ export async function addManualTransaction(input: {
   return {};
 }
 
-// "Paid ✓" for a planned bill: records one transaction at the amount given (defaults to the
-// budget) in the chosen month, so fixed bills become real numbers in one tap instead of
-// being silently assumed. Also marks the bill paid for the "still owed" list when it has a
-// due day.
+// "Paid ✓" for a planned bill: records the amount for the month (defaults to the budget) so
+// fixed bills become real numbers in one tap instead of being silently assumed. Stored as
+// the line's logged total, not a transaction: when the bank's charge syncs it replaces this
+// automatically, so nothing is counted twice. Also marks the bill paid for the "still owed"
+// list when it has a due day.
 export async function recordBillPaid(
   itemId: string,
   year: number,
@@ -1529,11 +1530,10 @@ export async function recordBillPaid(
   const day = item.due_day != null ? Math.min(item.due_day, lastDay) : isCurrent ? now.getDate() : 1;
   const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-  const { error } = await supabase.from("cash_flow_transactions").insert({
-    user_id: user.id, txn_date: date, period_year: year, period_month: month,
-    description: item.label, merchant: item.label, amount: amt, direction: "out",
-    cash_flow_item_id: item.id, source: "manual",
-  });
+  const { error } = await supabase.from("expense_actuals").upsert(
+    { user_id: user.id, cash_flow_item_id: item.id, label: item.label, period_year: year, period_month: month, actual_amount: amt, notes: "Marked paid", updated_at: new Date().toISOString() },
+    { onConflict: "user_id,cash_flow_item_id,period_year,period_month" },
+  );
   if (error) return { error: error.message };
 
   if (item.due_day != null && (!item.last_paid_for_date || item.last_paid_for_date < date)) {

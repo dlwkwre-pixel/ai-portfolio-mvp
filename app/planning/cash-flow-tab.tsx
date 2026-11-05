@@ -1273,7 +1273,9 @@ export default function CashFlowOS({
         id: item.id, label: item.label, planned, dueDay: item.due_day,
         // Same amount every month (or a scheduled bill) → one-tap "Paid". Everything else
         // fills in from transactions.
-        fixed: line.periodic || item.due_day != null || FIXED_BILL_CATEGORIES.has(categoryOf(item)),
+        // Utilities vary, so with a linked bank they fill in by themselves like food or gas.
+        fixed: line.periodic || item.due_day != null
+          || (FIXED_BILL_CATEGORIES.has(categoryOf(item)) && !(bankLink?.linked && categoryOf(item) === "Utilities")),
       }));
   }
   function savedFor(y: number, m: number) {
