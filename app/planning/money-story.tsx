@@ -51,7 +51,9 @@ export default function MoneyStory({
     { label: "Came in", value: money(income), tone: "var(--green)" },
     { label: "Spent", value: money(spent), tone: "var(--text-primary)" },
     ...(setAside > 0.5 ? [{ label: "Set aside for bills", value: money(setAside), tone: "var(--text-secondary)" }] : []),
-    { label: "Saved & invested", value: money(saved), tone: "var(--brand-blue)" },
+    saved < 0
+      ? { label: "Taken out of savings", value: money(saved), tone: "var(--amber)" }
+      : { label: "Saved & invested", value: money(saved), tone: "var(--brand-blue)" },
     leftInChecking >= 0
       ? { label: "Still in checking", value: money(leftInChecking), tone: "var(--text-primary)" }
       : fundedFromCash
@@ -80,7 +82,9 @@ export default function MoneyStory({
               ? `${money(saved)} saved & invested: ${money(Math.min(invested, saved))} went into investing${saved - invested >= 1 ? ` and ${money(saved - invested)} stayed in savings` : ""}. `
               : `${money(saved)} saved, and ${money(invested)} came back out of investing. `
             : `${money(saved)} already moved to savings or investments. `
-          : "Nothing moved to savings or investments yet this month. "}
+          : saved < 0
+            ? `${money(saved)} more came out of savings than went in (bills paid straight from savings, like rent). `
+            : "Nothing moved to savings or investments yet this month. "}
         {setAside > 0.5 ? `${money(setAside)} is set aside this month for ${setAsideLabels.join(", ") || "bills that aren't monthly"}, earmarked in savings until the bill comes${setAsideNotMoved > 0.5 ? `; ${money(setAsideNotMoved)} of it is still in checking, so move it over` : ""}. ` : ""}
         {pendingPlanned > 0 ? `${money(pendingPlanned)} of planned bills isn't recorded yet and is held back from what's left. ` : ""}
         {fundedFromCash ? `You moved more to savings than this month left over, so ${money(leftInChecking)} came from cash you already had. ` : ""}

@@ -615,7 +615,15 @@ export function computeMonthIncome(p: {
     regular = p.sources.reduce((s, src) => {
       const expectedShare = src.planMonthly * ratio;
       const rec = recordedBy.get(src.id);
-      if (rec === undefined) return s + expectedShare;
+      if (rec === undefined) {
+        // Current month, nothing in yet: all of it is still to come.
+        if (isCurrent) {
+          upcomingRegular += expectedShare;
+          const f = src.frequency ?? "monthly";
+          upcomingCount += f === "weekly" ? 4 : f === "biweekly" || f === "semimonthly" ? 2 : 1;
+        }
+        return s + expectedShare;
+      }
       if (!isCurrent) return s + rec;
       const n = remainingChecks(src);
       const perCheck = src.recentPerCheck ?? (src.perCheck ?? src.planMonthly) * ratio;

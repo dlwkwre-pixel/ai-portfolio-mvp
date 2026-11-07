@@ -27,7 +27,7 @@ import IncomePlanNote from "./income-plan-note";
 import { likelyPaycheckSource } from "@/lib/planning/pay-schedule";
 import type { RatedAccount } from "@/lib/planning/money-priorities";
 import StickyMonthBar from "./sticky-month-bar";
-import { billPlanForMonth, intervalMonths, monthsSinceDue, nextDueMonth } from "@/lib/planning/frequency";
+import { billPlanForMonth, fundLedger, intervalMonths, monthsSinceDue, nextDueMonth } from "@/lib/planning/frequency";
 import SinkingFunds, { type SinkingFund } from "./sinking-funds";
 import BillScheduleEditor from "./bill-schedule-editor";
 import PaceGuide, { type PaceData } from "./pace-guide";
@@ -1150,8 +1150,34 @@ export default function CashFlowOS({
 
   // What one budget line means in one month: an ordinary monthly amount, or a bill that
   // repeats every N months (set aside monthly, or counted when paid) — see frequency.ts.
-  function lineFor(item: CashFlowItem, y: number, m: number) {
+  function rawLineFor(item: CashFlowItem, y: number, m: number) {
     return billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, y, m), y, m);
+  }
+  // Funds with no due date (travel): a month counts its share plus any spending beyond what
+  // the fund had built up, so a big trip isn't hidden behind a $35 share. See fundLedger.
+  const fundStart = (item: CashFlowItem): number | null => {
+    const starts = budgetHistory.filter((h) => h.item_id === item.id && h.frequency === item.frequency)
+      .map((h) => h.effective_year * 12 + (h.effective_month - 1));
+    return starts.length > 0 ? Math.min(...starts) : null;
+  };
+  const fundCache = new Map<string, ReturnType<typeof fundLedger>>();
+  function fundFor(item: CashFlowItem, period: number) {
+    const start = fundStart(item);
+    if (start === null || period < start) return null;
+    const cached = fundCache.get(item.id);
+    if (cached && cached.has(period)) return cached.get(period)!;
+    const end = Math.max(period, now.getFullYear() * 12 + now.getMonth());
+    const ledger = fundLedger(start, end,
+      (p) => rawLineFor(item, Math.floor(p / 12), (p % 12) + 1).plan,
+      (p) => actualsIndex.get(`${item.id}|${Math.floor(p / 12)}|${(p % 12) + 1}`));
+    fundCache.set(item.id, ledger);
+    return ledger.get(period) ?? null;
+  }
+  function lineFor(item: CashFlowItem, y: number, m: number) {
+    const line = rawLineFor(item, y, m);
+    if (!line.periodic || line.due !== null) return line;
+    const f = fundFor(item, y * 12 + (m - 1));
+    return f ? { ...line, countActual: () => f.counted } : line;
   }
 
   // Spread bills (insurance every 6 months…) as sinking funds: the monthly set-aside to move
@@ -1165,15 +1191,8 @@ export default function CashFlowOS({
     // earlier charges (a flight before the fund existed) don't count against it.
     let flexible: SinkingFund["flexible"] = null;
     if (since === null) {
-      const starts = budgetHistory.filter((h) => h.item_id === i.id && h.frequency === i.frequency)
-        .map((h) => h.effective_year * 12 + (h.effective_month - 1));
-      const start = starts.length > 0 ? Math.min(...starts) : selYear * 12 + (selMonth - 1);
-      const months = Math.max(0, selYear * 12 + (selMonth - 1) - start + 1);
-      const spent = expenseActuals
-        .filter((a) => a.cash_flow_item_id === i.id && a.period_year * 12 + (a.period_month - 1) >= start
-          && a.period_year * 12 + (a.period_month - 1) <= selYear * 12 + (selMonth - 1))
-        .reduce((s, a) => s + a.actual_amount, 0);
-      flexible = { built: months * line.plan, spent };
+      const f = fundFor(i, selYear * 12 + (selMonth - 1));
+      flexible = f ? { balance: f.balance, spent: f.spent, overage: f.overage } : null;
     }
     return [{
       id: i.id, label: i.label, perMonth: line.plan, bill: line.paymentAmount, everyMonths: n,
@@ -1301,7 +1320,10 @@ export default function CashFlowOS({
   // available. Without it (no bank link), everything already saved is taken out.
   const investedThisMonth = investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null;
   const savedBeyondReserve = Math.max(0, savedRaw);
-  const reserveNotMoved = Math.max(0, -savedRaw);
+  // Short of the set-aside: that much of it is still in checking (never more than the set-aside).
+  // Beyond that, money actually left savings (rent paid from savings) and shows as negative.
+  const reserveNotMoved = Math.min(reserveThisMonth, Math.max(0, -savedRaw));
+  const savedForStory = savedRaw < 0 ? savedRaw + reserveNotMoved : savedRaw;
   const selBlend = sumBlendedExpenses(selPeriod, selPeriod);
   const unusualCharges = useMemo(() => {
     const ok = new Set(dismissedAlerts);
@@ -2211,7 +2233,7 @@ export default function CashFlowOS({
       <SinkingFunds funds={sinkingFunds} isPrivate={isPrivate} />
       <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
         setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
-        saved={savedBeyondReserve} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
+        saved={savedForStory} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund
@@ -2259,7 +2281,7 @@ export default function CashFlowOS({
             </div>
             {showReceived && (
               <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                {`Counts your ${fmt(selIncome.upcomingRegular)} paycheck that hasn't arrived yet. Wait for it to land before investing this.`}
+                {`Counts ${fmt(selIncome.upcomingRegular)} of pay that hasn't arrived yet (${selIncome.upcomingCount} paycheck${selIncome.upcomingCount === 1 ? "" : "s"}). Wait for it to land before investing this.`}
               </div>
             )}
             {savedBeyondReserve > 0 && (

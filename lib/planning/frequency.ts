@@ -122,3 +122,29 @@ export function billPlanForMonth(
   // and spending draws on what's built up. With a due date, the payment is spread instead.
   return { plan: perMonth, assumed: perMonth, askForPayment: due === true, paymentAmount: amount, countActual: due === null ? () => perMonth : (a) => a / n, periodic: true, due };
 }
+
+/**
+ * A fund with no due date (travel): each month adds its share; spending is paid from what's
+ * built up, and only the part beyond it is that month's own spending. So a $1,492 trip with
+ * $35 built up counts $35 (the month's share) + $1,457 over the fund in that month, and the
+ * fund is empty afterwards. Periods are year*12 + (month-1), from `start` through `end`.
+ */
+export function fundLedger(
+  start: number,
+  end: number,
+  shareFor: (period: number) => number,
+  spentFor: (period: number) => number | undefined,
+): Map<number, { counted: number; overage: number; spent: number; balance: number }> {
+  const out = new Map<number, { counted: number; overage: number; spent: number; balance: number }>();
+  let balance = 0;
+  for (let p = start; p <= end; p++) {
+    const share = shareFor(p);
+    balance += share;
+    const spent = Math.max(0, spentFor(p) ?? 0);
+    const covered = Math.min(spent, balance);
+    balance -= covered;
+    const overage = spent - covered;
+    out.set(p, { counted: share + overage, overage, spent, balance });
+  }
+  return out;
+}

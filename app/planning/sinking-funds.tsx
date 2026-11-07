@@ -16,7 +16,7 @@ export type SinkingFund = {
   shouldHave: number | null;   // what should be saved toward it by now (null: no due date set)
   next: { year: number; month: number } | null;
   dueThisMonth: boolean;
-  flexible?: { built: number; spent: number } | null; // no due date: a running balance
+  flexible?: { balance: number; spent: number; overage: number } | null; // no due date: a running balance
 };
 
 export default function SinkingFunds({ funds, isPrivate }: { funds: SinkingFund[]; isPrivate: boolean }) {
@@ -47,10 +47,10 @@ export default function SinkingFunds({ funds, isPrivate }: { funds: SinkingFund[
           <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>{`${money(f.perMonth)}/mo`}</div>
             {f.flexible && (
-              <div style={{ fontSize: "var(--text-2xs)", fontFamily: "var(--font-mono)", color: f.flexible.built - f.flexible.spent < 0 ? "var(--amber)" : "var(--text-tertiary)" }}>
-                {f.flexible.built - f.flexible.spent < 0
-                  ? `${money(f.flexible.spent - f.flexible.built)} over what's built up`
-                  : `${money(f.flexible.built - f.flexible.spent)} built up${f.flexible.spent > 0 ? ` after ${money(f.flexible.spent)} spent` : ""}`}
+              <div style={{ fontSize: "var(--text-2xs)", fontFamily: "var(--font-mono)", color: f.flexible.overage > 0 ? "var(--amber)" : "var(--text-tertiary)" }}>
+                {f.flexible.overage > 0
+                  ? `${money(f.flexible.spent)} spent: ${money(f.flexible.spent - f.flexible.overage)} from the fund, ${money(f.flexible.overage)} counted as this month's spending`
+                  : `${money(f.flexible.balance)} built up${f.flexible.spent > 0 ? ` after ${money(f.flexible.spent)} spent` : ""}`}
               </div>
             )}
             {f.shouldHave !== null && !f.dueThisMonth && (
