@@ -535,6 +535,8 @@ export type MonthIncome = {
   recordedCount: number;
   upcomingRegular: number;  // current month: paychecks still expected before month end
   upcomingCount: number;
+  bonusExpected: number;    // the after-tax bonus planned for this month (0 if none)
+  bonusReceived: boolean;   // a bonus-sized deposit already landed this month
   status: "expected" | "in-progress" | "recorded";
 };
 
@@ -556,6 +558,9 @@ export function computeMonthIncome(p: {
   sources: IncomeSource[];
   expectedTotal: number;
   transactions: CashFlowTransaction[];
+  // Annual bonus: its after-tax amount is expected only in its payout month (on or after
+  // its start). A deposit far bigger than a normal paycheck that month is the bonus.
+  bonus?: { net: number; month: number; startPeriod: number } | null;
 }): MonthIncome {
   const period = p.year * 12 + (p.month - 1);
   const nowPeriod = p.today.getFullYear() * 12 + p.today.getMonth();
@@ -583,6 +588,16 @@ export function computeMonthIncome(p: {
   const isPast = period < nowPeriod;
   const isCurrent = period === nowPeriod;
 
+  const bonusDue = !!p.bonus && p.bonus.net > 0 && p.month === p.bonus.month && period >= p.bonus.startPeriod;
+  const typicalCheck = (src: IncomeSource) => src.recentPerCheck ?? (src.perCheck ?? src.planMonthly) * ratio;
+  // In the bonus month, a deposit 1.5x+ a normal paycheck is the bonus (alone, or riding on a
+  // regular check); its paycheck share still counts toward the month's regular checks.
+  const isBonusSized = (amount: number, src: IncomeSource) => bonusDue && amount >= typicalCheck(src) * 1.5;
+  const bonusReceived = bonusDue && (
+    p.sources.some((src) => eventsFor(src.id).some((e) => isBonusSized(e.amount, src)))
+    || extrasList.some((t) => p.sources.some((src) => isBonusSized(t.amount, src)))
+  );
+
   // Current month, a source with paychecks already in: what's recorded PLUS the paychecks
   // still due before month end for its schedule — never "the bigger of recorded or
   // expected", which ignored a smaller-than-usual paycheck (variable pay) and kept saying
@@ -590,7 +605,11 @@ export function computeMonthIncome(p: {
   const monthEnd = new Date(p.year, p.month, 0);
   let upcomingRegular = 0, upcomingCount = 0;
   const remainingChecks = (src: IncomeSource): number => {
-    const mine = eventsFor(src.id);
+    // A bonus deposit isn't a paycheck, unless it carries one (bonus + regular check together).
+    const mine = eventsFor(src.id).flatMap((e) => {
+      if (!isBonusSized(e.amount, src)) return [e];
+      return Math.round(Math.max(0, e.amount - (p.bonus?.net ?? 0)) / typicalCheck(src)) >= 1 ? [e] : [];
+    });
     if (mine.length === 0) return 0;
     const freq = src.frequency ?? "monthly";
     if (freq === "weekly" || freq === "biweekly") {
@@ -637,9 +656,17 @@ export function computeMonthIncome(p: {
       : p.expectedTotal;
   }
 
+  // The bonus, until it lands: expected in future months and this month; a past month that
+  // has nothing recorded keeps it as expected too. Recorded months use what actually came in.
+  const bonusExpected = bonusDue ? p.bonus!.net : 0;
+  if (bonusDue && !bonusReceived && (period >= nowPeriod || recordedCount === 0)) {
+    regular += bonusExpected;
+    if (isCurrent) upcomingRegular += bonusExpected;
+  }
+
   return {
     total: regular + extras,
-    expected: p.expectedTotal,
+    expected: p.expectedTotal + bonusExpected,
     regular,
     extras,
     extraCount: extrasList.length,
@@ -647,6 +674,8 @@ export function computeMonthIncome(p: {
     recordedCount,
     upcomingRegular,
     upcomingCount,
+    bonusExpected,
+    bonusReceived,
     status: recordedCount === 0 ? "expected" : isPast ? "recorded" : "in-progress",
   };
 }
@@ -771,8 +800,10 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
 // Typical net paycheck for a source: median of its last 3 pay events (split deposits merged)
 // in the past ~100 days, excluding the current month's still-incomplete picture is not
 // needed — a single paycheck is complete once it lands. Null without at least 2 events.
-export function recentPaycheck(txns: CashFlowTransaction[], sourceId: string, today: Date): number | null {
-  const since = new Date(today.getTime() - 100 * 86_400_000).toISOString().slice(0, 10);
+export function recentPaycheck(txns: CashFlowTransaction[], sourceId: string, today: Date, planChangedOn?: string): number | null {
+  // After a plan change (a raise), paychecks from before it describe the old pay.
+  const window = new Date(today.getTime() - 100 * 86_400_000).toISOString().slice(0, 10);
+  const since = planChangedOn && planChangedOn > window ? planChangedOn : window;
   const events = payEvents(txns.filter((t) => t.direction === "in" && t.cash_flow_item_id === sourceId && t.txn_date >= since && t.amount > 0));
   if (events.length < 2) return null;
   const last = events.slice(-3).map((e) => e.amount).sort((a, b) => a - b);

@@ -1074,7 +1074,7 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], investedByMonth = {}, ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], investedByMonth = {}, bonusPlan = null, ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
@@ -1084,6 +1084,7 @@ export default function CashFlowOS({
   bankLink?: BankLinkInfo | null;
   dismissedAlerts?: string[];
   investedByMonth?: Record<string, number>; // "YYYY-MM" → net moved into investing (bank sync)
+  bonusPlan?: { net: number; month: number; startPeriod: number } | null; // annual bonus, after tax
   ratedDebts?: RatedAccount[];
   netWorthHistory?: NetWorthSnapshot[];
   budgetHistory: BudgetHistoryEntry[];
@@ -1255,16 +1256,30 @@ export default function CashFlowOS({
     return { blendedTotal, budgetedTotal, recordedTotal, assumedTotal, setAsideTotal, monthCount, fullyLoggedMonths, anyLogged };
   }
 
+  // The last time an income line's plan changed (a raise), as YYYY-MM-01 — earlier
+  // paychecks describe the old pay. Ignores the "2000-01" baseline row.
+  function planChangeDate(itemId: string): string | undefined {
+    const changes = budgetHistory.filter((h) => h.item_id === itemId && h.effective_year > 2000)
+      .map((h) => `${h.effective_year}-${String(h.effective_month).padStart(2, "0")}-01`).sort();
+    return changes[changes.length - 1];
+  }
+  // A raise in the last 3 months makes recent averages describe the old pay.
+  function planChangedRecently(itemId: string): boolean {
+    const d = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const changed = planChangeDate(itemId);
+    return !!changed && changed >= cutoff;
+  }
   // Income for a month = expected (effectiveIncome) adjusted by what was actually recorded:
   // paychecks assigned to an income source replace that source's expected amount, unassigned
   // income (a Marketplace sale) is added on top. See computeMonthIncome for the rules.
   const incomeSources = useMemo(
-    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency), frequency: i.frequency, perCheck: i.amount, recentPerCheck: recentPaycheck(transactions, i.id, now) ?? undefined })),
+    () => incomeItems.map(i => ({ id: i.id, label: i.label, planMonthly: toMonthly(i.amount, i.frequency), frequency: i.frequency, perCheck: i.amount, recentPerCheck: recentPaycheck(transactions, i.id, now, planChangeDate(i.id)) ?? undefined })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cashFlowItems, transactions],
   );
   function incomeFor(y: number, m: number) {
-    return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: effectiveIncome, transactions });
+    return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: effectiveIncome, transactions, bonus: bonusPlan });
   }
   function sumIncome(periodFrom: number, periodTo: number) {
     let total = 0, anyRecorded = false;
@@ -1907,6 +1922,9 @@ export default function CashFlowOS({
                   ? `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). Expected pay is still used for income lines with nothing recorded yet.`
                   : `${selIncome.recordedCount} paycheck${selIncome.recordedCount !== 1 ? "s" : ""} recorded (${ph(fmt(selIncome.recordedRegular))}). That's this month's income, used in place of expected pay.`}
             {selIncome.extraCount > 0 && ` Plus ${ph(fmt(selIncome.extras))} extra, one-time income.`}
+            {selIncome.bonusExpected > 0 && (selIncome.bonusReceived
+              ? " Your bonus came in this month."
+              : ` Includes your expected ${ph(fmt(selIncome.bonusExpected))} bonus (after tax), not paid yet.`)}
             {selIncome.status === "recorded" && selIncome.total - effectiveIncome >= 1 &&
               ` That's ${ph(fmt(selIncome.total - effectiveIncome))} more than your plan, a good amount to put toward a goal.`}
           </p>
@@ -2561,7 +2579,7 @@ export default function CashFlowOS({
                 <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
                 {/* Only when pay actually varies or the plan is off: a steady salary that
                     matches the plan doesn't need "plan on lowest". */}
-                {avg3 !== null && floor !== null && planNow > 0 &&
+                {avg3 !== null && floor !== null && planNow > 0 && !planChangedRecently(item.id) &&
                   ((avg3 - floor) / avg3 > 0.08 || Math.abs(avg3 - planNow) / planNow > 0.08) && (
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "10.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", padding: "2px 0 4px" }}>
                     <span>

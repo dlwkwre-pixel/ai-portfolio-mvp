@@ -51,6 +51,8 @@ import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retir
 import { contributionLimits, iraLimitForAge } from "@/lib/tax/contribution-limits";
 import { compute401k } from "@/lib/tax/retirement-401k";
 import Plan401kSection from "./plan-401k-section";
+import BonusSection from "./bonus-section";
+import { bonusTakeHome } from "@/lib/tax/bonus";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 import {
   fmt, fmtFull, fmtPct, toMonthly, freqSuffix, getEffectiveBudget, fmtDate, fmtDateShort,
@@ -3315,6 +3317,21 @@ export default function PlanningClient({
   // user's income came from Cash Flow items instead of the profile income field.
   const effectiveIncome = monthlyIncome > 0 ? monthlyIncome - k401EmployeeMonthly : profileNetMonthly;
   const effectiveExpenses = monthlyExpenses > 0 ? monthlyExpenses : (profile?.monthly_expenses ?? 0);
+  // Annual bonus (Overview), after tax, for Cash Flow's payout month.
+  const bonusPlan = (() => {
+    const pct = profile?.bonus_pct ?? 0;
+    if (!profile || pct <= 0 || !profile.bonus_month || profileGross <= 0) return null;
+    const stateRate = estimateTax(profileGross, (profile.filing_status as FilingStatus) ?? "single", (profile.income_type as IncomeType) ?? "w2", profile.state_code ?? "", effectivePreTaxAnnual).stateEffectiveRate / 100;
+    const net = bonusTakeHome({
+      grossBonus: profileGross * 12 * pct / 100,
+      k401Pct: profile.has_401k ? profile.k401_contribution_pct ?? 0 : 0,
+      includes401k: profile.bonus_includes_401k ?? true,
+      isRoth: profile.k401_is_roth ?? false,
+      stateRate: Number.isFinite(stateRate) ? stateRate : 0,
+    }).takeHome;
+    const start = profile.bonus_start ? Number(profile.bonus_start.slice(0, 4)) * 12 + (Number(profile.bonus_start.slice(5, 7)) - 1) : 0;
+    return { net, month: profile.bonus_month, startPeriod: start };
+  })();
   const monthlySavings = effectiveIncome - effectiveExpenses;
   const savingsRate = effectiveIncome > 0 ? (monthlySavings / effectiveIncome) * 100 : 0;
 
@@ -5641,6 +5658,11 @@ export default function PlanningClient({
               />
             </div>
           )}
+          {profile && (profile.gross_monthly_income ?? 0) > 0 && (
+            <div className="cmd-section" style={{ animationDelay: "35ms" }}>
+              <BonusSection profile={profile} />
+            </div>
+          )}
 
           {/* ── Section 1b: Biggest Risk + Biggest Opportunity ── */}
           {commandPriorities.length > 0 && (() => {
@@ -6228,6 +6250,7 @@ export default function PlanningClient({
             surplusToInvestPct={profile?.surplus_to_invest_pct ?? 50}
             emergencyFundExpenseBasis={effectiveExpenses}
             k401EmployeeMonthly={k401EmployeeMonthly}
+            bonusPlan={bonusPlan}
           />
         </div>
       )}

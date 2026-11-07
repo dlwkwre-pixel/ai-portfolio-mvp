@@ -42,6 +42,11 @@ export type FinancialProfile = {
   pay_frequency?: string | null; // weekly | biweekly | semimonthly | monthly
   emergency_fund_months?: number | null; // 6 | 9 | 12
   surplus_to_invest_pct?: number | null; // 0-100, see updateSurplusAllocation
+  // Annual bonus (supabase/profile-bonus.sql): % of salary paid in bonus_month from bonus_start
+  bonus_pct?: number | null;
+  bonus_month?: number | null;
+  bonus_start?: string | null;
+  bonus_includes_401k?: boolean | null;
   updated_at: string;
   // Home owner-mover mode
   is_homeowner: boolean;
@@ -192,6 +197,29 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   if (error) return { error: error.message };
   // XP: one-time award once the core profile is filled (income + birthdate).
   if (gross_monthly_income && date_of_birth) void awardXp(user.id, "profile_complete");
+  revalidatePath("/planning");
+  return {};
+}
+
+// Annual bonus settings (Overview → Annual bonus). Saved on their own like the 401(k).
+export async function upsertBonusSettings(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const pct = Number(formData.get("bonus_pct"));
+  const month = Number(formData.get("bonus_month"));
+  const startRaw = String(formData.get("bonus_start") ?? "").trim();
+  if (!Number.isFinite(pct) || pct < 0 || pct > 500) return { error: "Enter a bonus between 0% and 500%." };
+  if (!Number.isInteger(month) || month < 1 || month > 12) return { error: "Pick the month it's paid." };
+  if (startRaw && !/^\d{4}-\d{2}-01$/.test(startRaw)) return { error: "Pick a starting month." };
+  const { error } = await supabase.from("financial_profiles").upsert({
+    user_id: user.id, bonus_pct: pct, bonus_month: month, bonus_start: startRaw || null,
+    bonus_includes_401k: String(formData.get("bonus_includes_401k") ?? "true") === "true",
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (error) {
+    return { error: /bonus_/.test(error.message) ? "Bonus settings need a one-time database update (supabase/profile-bonus.sql)." : error.message };
+  }
   revalidatePath("/planning");
   return {};
 }
