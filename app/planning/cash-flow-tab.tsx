@@ -1073,6 +1073,68 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
   );
 }
 
+// One Budget vs. Actual category, opened: the transactions (and logged totals) behind its
+// number for the period on screen.
+function CategoryTransactions({ cat, transactions, expenseActuals, drillRange, isPrivate }: {
+  cat: { label: string; items: CashFlowItem[] };
+  transactions: CashFlowTransaction[];
+  expenseActuals: ExpenseActual[];
+  drillRange: { from: number; to: number } | null;
+  isPrivate: boolean;
+}) {
+  const ph = (v: string) => (isPrivate ? "••••" : v);
+  const [showAll, setShowAll] = useState(false);
+  if (!drillRange) {
+    return <p style={{ margin: "8px 0 2px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Switch to Monthly, YTD or Annual to see the transactions.</p>;
+  }
+  const ids = new Set(cat.items.map((i) => i.id));
+  const lineLabel = new Map(cat.items.map((i) => [i.id, i.label]));
+  const inRange = (y: number, m: number) => { const p = y * 12 + (m - 1); return p >= drillRange.from && p <= drillRange.to; };
+  const rows = transactions
+    .filter((t) => t.direction === "out" && t.cash_flow_item_id && ids.has(t.cash_flow_item_id) && inRange(t.period_year, t.period_month) && !isSavingsAdjustment(t))
+    .sort((a, b) => b.txn_date.localeCompare(a.txn_date));
+  // Amounts logged without transactions ("Paid", "Not charged", a typed-in total).
+  const logged = expenseActuals.filter((a) => a.source !== "transactions" && a.cash_flow_item_id && ids.has(a.cash_flow_item_id) && inRange(a.period_year, a.period_month));
+  const total = rows.reduce((s, t) => s + t.amount, 0) + logged.reduce((s, a) => s + a.actual_amount, 0);
+  const shown = showAll ? rows : rows.slice(0, 25);
+  const multiLine = cat.items.length > 1;
+  const line = (key: string, date: string, name: string, amount: number, sub?: string) => (
+    <div key={key} style={{ display: "flex", justifyContent: "space-between", gap: "10px", padding: "5px 0", borderTop: "1px solid var(--border-subtle)", fontSize: "11.5px", fontFamily: "var(--font-body)" }}>
+      <span style={{ minWidth: 0, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginRight: "8px" }}>{date}</span>
+        {name}
+        {sub && <span style={{ color: "var(--text-tertiary)" }}>{` · ${sub}`}</span>}
+      </span>
+      <span style={{ fontFamily: "var(--font-mono)", color: amount < 0 ? "var(--green)" : "var(--text-primary)", flexShrink: 0 }}>
+        {amount < 0 ? `−${ph(fmtFull(Math.abs(amount)))}` : ph(fmtFull(amount))}
+      </span>
+    </div>
+  );
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: "8px", cursor: "default" }}>
+      {rows.length === 0 && logged.length === 0 ? (
+        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Nothing recorded in this category for this period yet.</p>
+      ) : (
+        <>
+          {shown.map((t) => line(t.id, `${MONTH_NAMES[t.period_month - 1].slice(0, 3)} ${Number(t.txn_date.slice(8, 10))}`, t.merchant, t.amount, multiLine ? lineLabel.get(t.cash_flow_item_id!) : undefined))}
+          {logged.map((a) => line(a.id, MONTH_NAMES[a.period_month - 1].slice(0, 3), a.notes ?? "Logged total", a.actual_amount, lineLabel.get(a.cash_flow_item_id!)))}
+          {rows.length > shown.length && (
+            <button type="button" onClick={() => setShowAll(true)}
+              style={{ minHeight: "32px", background: "none", border: "none", padding: 0, color: "var(--brand-blue)", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              {`Show all ${rows.length}`}
+            </button>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 0", borderTop: "1px solid var(--border-subtle)", fontSize: "11.5px", fontWeight: 600, fontFamily: "var(--font-body)", color: "var(--text-primary)" }}>
+            <span>{`${rows.length + logged.length} item${rows.length + logged.length === 1 ? "" : "s"}`}</span>
+            <span style={{ fontFamily: "var(--font-mono)" }}>{ph(fmtFull(total))}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
 export default function CashFlowOS({
   cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], dismissedAlerts = [], investedByMonth = {}, bonusPlan = null, ratedDebts = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
@@ -1204,6 +1266,11 @@ export default function CashFlowOS({
     }];
   });
 
+  // Which months the Budget vs. Actual numbers cover, so a category's transaction list matches.
+  const drillRange = viewMode === "monthly" ? { from: selYear * 12 + (selMonth - 1), to: selYear * 12 + (selMonth - 1) }
+    : viewMode === "ytd" ? { from: selYear * 12, to: selYear * 12 + Math.max(0, ytdMonths - 1) }
+    : viewMode === "annual" ? { from: selYear * 12, to: selYear * 12 + 11 }
+    : null;
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
       const items = expenseItems.filter(i => categoryOf(i) === cat.label);
@@ -2206,7 +2273,10 @@ export default function CashFlowOS({
                       cursor: "pointer", transition: "background 0.15s, border-color 0.15s",
                       opacity: highlightedCat && !isHl ? 0.5 : 1,
                     }}
+                    role="button" tabIndex={0} aria-expanded={isHl}
+                    aria-label={`${cat.label}: ${isHl ? "hide" : "show"} its transactions`}
                     onClick={() => setHighlightedCat(isHl ? null : cat.label)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setHighlightedCat(isHl ? null : cat.label); } }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "5px" }}>
                       <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
@@ -2239,6 +2309,7 @@ export default function CashFlowOS({
                     <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)", overflow: "hidden" }}>
                       <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, borderRadius: "2.5px", background: barColor, animationDelay: `${150 + ci * 45}ms` }} />
                     </div>
+                    {isHl && <CategoryTransactions cat={cat} transactions={transactions} expenseActuals={expenseActuals} drillRange={drillRange} isPrivate={isPrivate} />}
                   </div>
                 );
               })}
