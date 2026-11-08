@@ -7,6 +7,8 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import TaxClient from "./tax-client";
 import PageIntro from "@/app/components/page-intro";
+import { kvGet } from "@/lib/kv";
+import { PAY_PERIODS, type PayFrequency, type PaystubInputs } from "@/lib/tax/refund-forecast";
 
 export const metadata = { title: "Tax Center — BuyTune" };
 
@@ -82,6 +84,16 @@ export type TaxPageData = {
   retirementContributions: RetirementContribution[];
   accountBuckets: { taxable: AssetBucket; deferred: AssetBucket; free: AssetBucket };
   traditionalEstimate: number;  // best estimate of convertible Traditional/pre-tax balance
+  refund: RefundSetup | null;   // current year only
+};
+
+export type RefundSetup = {
+  saved: (PaystubInputs & { savedAt?: string }) | null;
+  salaryAnnual: number;
+  k401Pct: number;              // Traditional 401(k) %, 0 if Roth/none
+  bonus: { gross: number; month: number; includes401k: boolean } | null;
+  interestEstimate: number | null;  // full-year bank interest, from linked-account deposits
+  defaultFrequency: PayFrequency;
 };
 
 export type AssetBucket = { value: number; byAsset: Record<string, number> };
@@ -465,6 +477,43 @@ export default async function TaxPage({
     }).filter((r) => r.contributed > 0);
   }
 
+  // ── Refund forecast inputs (paystub YTD saved per year + what the profile knows) ──
+  let refund: RefundSetup | null = null;
+  if (selectedYear === currentYear) {
+    const fp = financialProfileData;
+    const [saved, { data: interestRows }, { data: incomeItems }] = await Promise.all([
+      kvGet<PaystubInputs & { savedAt?: string }>(`taxstub:${user.id}:${selectedYear}`),
+      supabase.from("cash_flow_transactions")
+        .select("txn_date, amount")
+        .eq("user_id", user.id)
+        .eq("direction", "in")
+        .ilike("description", "%interest%")
+        .gte("txn_date", `${selectedYear}-01-01`)
+        .lte("txn_date", `${selectedYear}-12-31`),
+      supabase.from("cash_flow_items").select("frequency, amount").eq("user_id", user.id).eq("type", "income"),
+    ]);
+    // Bank interest: average month seen so far, times twelve.
+    const interestMonths = new Set((interestRows ?? []).map((r) => String(r.txn_date).slice(0, 7)));
+    const interestTotal = (interestRows ?? []).reduce((sum, r) => sum + Number(r.amount ?? 0), 0);
+    const salaryAnnual = Number(fp?.gross_monthly_income ?? 0) * 12;
+    const bonusPct = Number(fp?.bonus_pct ?? 0);
+    const bonusStart = fp?.bonus_start ? String(fp.bonus_start).slice(0, 7) : null;
+    const bonusMonth = Number(fp?.bonus_month ?? 12);
+    const bonusThisYear = bonusPct > 0 && salaryAnnual > 0
+      && (!bonusStart || bonusStart <= `${selectedYear}-${String(bonusMonth).padStart(2, "0")}`);
+    // Pay frequency: the profile's, else the biggest income line in Cash Flow.
+    const mainIncome = [...(incomeItems ?? [])].sort((a, b) => Number(b.amount ?? 0) - Number(a.amount ?? 0))[0];
+    const freq = String(fp?.pay_frequency ?? mainIncome?.frequency ?? "");
+    refund = {
+      saved,
+      salaryAnnual,
+      k401Pct: fp?.has_401k && !fp?.k401_is_roth ? Number(fp?.k401_contribution_pct ?? 0) : 0,
+      bonus: bonusThisYear ? { gross: salaryAnnual * bonusPct / 100, month: bonusMonth, includes401k: fp?.bonus_includes_401k ?? true } : null,
+      interestEstimate: interestMonths.size > 0 ? Math.round(interestTotal / interestMonths.size * 12) : null,
+      defaultFrequency: freq in PAY_PERIODS ? (freq as PayFrequency) : "biweekly",
+    };
+  }
+
   const taxData: TaxPageData = {
     years,
     selectedYear,
@@ -483,6 +532,7 @@ export default async function TaxPage({
     traditionalEstimate: accountBuckets.deferred.value > 0
       ? accountBuckets.deferred.value
       : Number(financialProfileData?.k401_current_balance ?? 0),
+    refund,
   };
 
   return (

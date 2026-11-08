@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning, AssetBucket } from "./page";
 import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-actions";
-import { estimateTax, federalBracketHeadroom, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
+import { estimateTax, federalBracketHeadroom, standardDeduction, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import { contributionLimits } from "@/lib/tax/contribution-limits";
 import type { FilingStatus, IncomeType, BracketHeadroom } from "@/lib/tax/estimator";
 import PageTutorial from "@/app/components/page-tutorial";
 import InfoTooltip from "@/app/components/info-tooltip";
+import RefundForecastCard from "./refund-forecast-card";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -31,13 +32,6 @@ function glColor(v: number) {
   return "var(--text-secondary)";
 }
 
-// Standard deductions 2025
-const STD_DEDUCTION: Record<string, number> = {
-  single: 15_000,
-  married_filing_jointly: 30_000,
-  head_of_household: 22_500,
-  married_filing_separately: 15_000,
-};
 
 const STCG_BRACKETS = [
   { label: "10%", rate: 0.10 }, { label: "12%", rate: 0.12 }, { label: "22%", rate: 0.22 },
@@ -45,9 +39,9 @@ const STCG_BRACKETS = [
   { label: "37%", rate: 0.37 },
 ];
 const LTCG_RATES = [
-  { bracket: "Up to $47,025 (single) / $94,050 (MFJ)", rate: 0, label: "0%" },
-  { bracket: "$47,026–$518,900 (single) / $94,051–$583,750 (MFJ)", rate: 0.15, label: "15%" },
-  { bracket: "Over $518,900 (single) / Over $583,750 (MFJ)", rate: 0.20, label: "20%" },
+  { bracket: "Up to $49,450 (single) / $98,900 (MFJ)", rate: 0, label: "0%" },
+  { bracket: "$49,451–$545,500 (single) / $98,901–$613,700 (MFJ)", rate: 0.15, label: "15%" },
+  { bracket: "Over $545,500 (single) / Over $613,700 (MFJ)", rate: 0.20, label: "20%" },
 ];
 
 // ─── count-up hook ────────────────────────────────────────────────────────────
@@ -578,8 +572,8 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const derivedStcgRate = incomeTaxEstimate?.federalMarginalRate ?? 0.22;
   const mfjThresh = taxProfile?.filingStatus === "married_filing_jointly";
   const derivedLtcgRate = incomeTaxEstimate
-    ? incomeTaxEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20
-      : incomeTaxEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00
+    ? incomeTaxEstimate.grossAnnual > (mfjThresh ? 613_700 : 545_500) ? 0.20
+      : incomeTaxEstimate.grossAnnual > (mfjThresh ? 98_900 : 49_450) ? 0.15 : 0.00
     : 0.15;
   const cgNiit = incomeTaxEstimate
     ? incomeTaxEstimate.grossAnnual > (mfjThresh ? 250_000 : 200_000)
@@ -600,7 +594,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const headroom = activeEstimate ? federalBracketHeadroom(activeEstimate.taxableIncome, activeFiling) : null;
   const cgStcgRateResolved = activeEstimate ? activeEstimate.federalMarginalRate : stcgRate;
   const cgLtcgRateResolved = activeEstimate
-    ? (activeEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : activeEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
+    ? (activeEstimate.grossAnnual > (mfjThresh ? 613_700 : 545_500) ? 0.20 : activeEstimate.grossAnnual > (mfjThresh ? 98_900 : 49_450) ? 0.15 : 0.00)
     : ltcgRate;
 
   // Apply user-supplied cost basis overrides and/or acquisition years
@@ -641,9 +635,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     : 0;
 
   // Deductions analysis
-  const stdDeduction = STD_DEDUCTION[taxProfile?.filingStatus ?? "single"] ?? 15_000;
+  const stdDeduction = standardDeduction((taxProfile?.filingStatus as FilingStatus) ?? "single");
   const saltCapped = incomeTaxEstimate
-    ? Math.min(Math.round(incomeTaxEstimate.stateTax) + annualPropertyTax, 10_000)
+    ? Math.min(Math.round(incomeTaxEstimate.stateTax) + annualPropertyTax, 40_400)
     : 0;
   const estimatedItemized = annualMortgageInterest + saltCapped;
   const itemizingSaves = estimatedItemized > stdDeduction
@@ -917,7 +911,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     <LearnPanel title="What is FICA?" label="? What is FICA?">
-                      <p style={{ margin: 0 }}>FICA stands for Federal Insurance Contributions Act. It&apos;s two separate taxes combined: Social Security (6.2% on wages up to $176,100) and Medicare (1.45% on all wages, plus an extra 0.9% above $200k). Your employer pays a matching 6.2% + 1.45% on top of what you pay — so it costs your employer more than your paycheck shows. For self-employed people, you pay both halves (15.3%) as the &quot;self-employment tax.&quot;</p>
+                      <p style={{ margin: 0 }}>FICA stands for Federal Insurance Contributions Act. It&apos;s two separate taxes combined: Social Security (6.2% on wages up to $184,500) and Medicare (1.45% on all wages, plus an extra 0.9% above $200k). Your employer pays a matching 6.2% + 1.45% on top of what you pay — so it costs your employer more than your paycheck shows. For self-employed people, you pay both halves (15.3%) as the &quot;self-employment tax.&quot;</p>
                     </LearnPanel>
                     <LearnPanel title="What is the federal marginal rate?" label="? Marginal rate">
                       <p style={{ margin: 0 }}>The US uses a &quot;progressive&quot; tax system — different portions of your income are taxed at different rates. Your &quot;marginal rate&quot; (currently {Math.round((activeEstimate.federalMarginalRate ?? 0) * 100)}%) is the rate that applies to your last dollar earned. Your &quot;effective rate&quot; ({(activeEstimate.federalEffectiveRate * 100).toFixed(1)}%) is the overall average. The marginal rate matters most for decisions like whether to contribute more to a 401k — because each dollar you put in reduces taxes at your marginal rate.</p>
@@ -931,6 +925,16 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </div>
               )}
             </SectionCard>
+
+            {/* ── REFUND FORECAST (paystub YTD + rest of the year) ── */}
+            {data.refund && (taxProfile?.incomeType ?? "w2") !== "self_employed" && (
+              <RefundForecastCard
+                setup={data.refund}
+                year={selectedYear}
+                filing={(taxProfile?.filingStatus as FilingStatus) ?? "single"}
+                investments={{ shortTerm: stcgNet + unknownLots.reduce((s, l) => s + l.gainLoss, 0), longTerm: ltcgNet, dividends: dividendIncome }}
+              />
+            )}
 
             {/* ── BRACKET HEADROOM (Roth conversion / pre-tax / gain-harvest room) ── */}
             {headroom && <BracketHeadroomCard h={headroom} />}
@@ -984,7 +988,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   )}
 
                   <LearnPanel title="How does the property tax deduction work?" label="? Property tax deduction">
-                    <p style={{ margin: 0 }}>When you file your federal tax return, you choose between taking the &quot;standard deduction&quot; (a fixed dollar amount the IRS gives everyone) or listing your actual deductions (&quot;itemizing&quot;). As a homeowner, you can potentially deduct your mortgage interest AND property taxes. The catch: state + local taxes (including property tax) are capped at $10,000/year total — this is called the SALT limit. Many homeowners in high-cost areas find that itemizing still beats the standard deduction because the mortgage interest alone can exceed the standard amount.</p>
+                    <p style={{ margin: 0 }}>When you file your federal tax return, you choose between taking the &quot;standard deduction&quot; (a fixed dollar amount the IRS gives everyone) or listing your actual deductions (&quot;itemizing&quot;). As a homeowner, you can potentially deduct your mortgage interest AND property taxes. The catch: state + local taxes (including property tax) are capped at $40,400/year total in 2026 (it shrinks back toward $10,000 once income passes about $505,000) — this is called the SALT limit. Many homeowners in high-cost areas find that itemizing still beats the standard deduction because the mortgage interest alone can exceed the standard amount.</p>
                   </LearnPanel>
                 </div>
               </SectionCard>
@@ -1253,7 +1257,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     <p style={{ margin: 0 }}>When you file your taxes, you can reduce your taxable income in two ways. Option A: take the &quot;standard deduction&quot; — the IRS lets everyone deduct a fixed amount ($15,000 single / $30,000 married) from their income, no questions asked. Option B: &quot;itemize&quot; — list your actual qualifying expenses (mortgage interest, property taxes, charitable donations, certain medical expenses) and deduct the total instead. You can only pick one. If your itemized total is higher than the standard deduction, itemizing saves you money.</p>
                   </LearnPanel>
                   <LearnPanel title="What is the SALT cap?" label="? SALT cap">
-                    <p style={{ margin: 0 }}>SALT stands for State And Local Taxes. The IRS lets you deduct what you pay in state income taxes and local property taxes — but only up to $10,000 total per year (for 2025). This cap has a big impact on people in high-tax states like California, New York, and New Jersey, where state income taxes alone can exceed $10,000. Before this cap was introduced in 2017, there was no limit on SALT deductions.</p>
+                    <p style={{ margin: 0 }}>SALT stands for State And Local Taxes. The IRS lets you deduct what you pay in state income taxes and local property taxes — but only up to $40,400 total for 2026 (the cap shrinks toward $10,000 for incomes above about $505,000). This cap has a big impact on people in high-tax states like California, New York, and New Jersey, where state income taxes alone can exceed $10,000. From 2018 through 2024 the cap was $10,000; before 2018 there was no limit.</p>
                   </LearnPanel>
                 </div>
               </SectionCard>
@@ -1597,7 +1601,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             <div className="bt-card" style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", gap: "6px" }}>
                 <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Long-Term Capital Gains Rates</h2>
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference — verify at IRS.gov for current year</span>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2026 reference — verify at IRS.gov</span>
               </div>
               <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "440px" }}>
@@ -1609,7 +1613,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {[["0%","$0–$47,025","$0–$94,050","$0–$63,000"],["15%","$47,026–$518,900","$94,051–$583,750","$63,001–$551,350"],["20%","Over $518,900","Over $583,750","Over $551,350"],["+ 3.8% NIIT","Over $200,000","Over $250,000","Over $200,000"]].map(([r,s,m,h],i) => (
+                  {[["0%","$0–$49,450","$0–$98,900","$0–$66,200"],["15%","$49,451–$545,500","$98,901–$613,700","$66,201–$579,600"],["20%","Over $545,500","Over $613,700","Over $579,600"],["+ 3.8% NIIT","Over $200,000","Over $250,000","Over $200,000"]].map(([r,s,m,h],i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                       <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: r.includes("NIIT") ? "#f59e0b" : "var(--brand-blue)" }}>{r}</td>
                       <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{s}</td>
@@ -1624,7 +1628,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             <div className="bt-card" style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", gap: "6px" }}>
                 <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Ordinary Income Rates (Short-Term Gains)</h2>
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference</span>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2026 reference</span>
               </div>
               <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "340px" }}>
@@ -1636,7 +1640,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {[["10%","$0–$11,925","$0–$23,850"],["12%","$11,926–$48,475","$23,851–$96,950"],["22%","$48,476–$103,350","$96,951–$206,700"],["24%","$103,351–$197,300","$206,701–$394,600"],["32%","$197,301–$250,525","$394,601–$501,050"],["35%","$250,526–$626,350","$501,051–$751,600"],["37%","Over $626,350","Over $751,600"]].map(([r,s,m],i) => (
+                  {[["10%","$0–$12,400","$0–$24,800"],["12%","$12,401–$50,400","$24,801–$100,800"],["22%","$50,401–$105,700","$100,801–$211,400"],["24%","$105,701–$201,775","$211,401–$403,550"],["32%","$201,776–$256,225","$403,551–$512,450"],["35%","$256,226–$640,600","$512,451–$768,700"],["37%","Over $640,600","Over $768,700"]].map(([r,s,m],i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                       <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--brand-blue)" }}>{r}</td>
                       <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{s}</td>
@@ -1656,7 +1660,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   { title: "Wash sale rule", body: "Sell at a loss and buy the same stock within 30 days — the IRS disallows the loss deduction. The loss isn't eliminated; it adds to the new shares' cost basis." },
                   { title: "NIIT — the surtax most people forget", body: "A 3.8% surtax on investment income applies when your total income exceeds $200k (single) or $250k (MFJ). It stacks on top of your capital gains rate." },
                   { title: "Qualified dividends", body: "Dividends from US companies held 60+ days are 'qualified' and get the lower capital gains rate. Unqualified dividends are taxed at your ordinary income rate." },
-                  { title: "SALT deduction cap", body: "State income taxes + local property taxes are capped at a combined $10,000 deduction on your federal return. This hurts high-tax states like CA and NY most." },
+                  { title: "SALT deduction cap", body: "State income taxes + local property taxes are capped at a combined $40,400 deduction on your federal return for 2026 (lower for incomes above about $505,000). This matters most in high-tax states like CA and NY." },
                   { title: "Tax-advantaged accounts", body: "Gains inside a 401(k), IRA, or Roth IRA grow without triggering capital gains tax. Traditional accounts tax withdrawals as ordinary income; Roth withdrawals in retirement are completely tax-free." },
                 ].map(({ title, body }) => (
                   <div key={title} style={{ padding: "11px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>

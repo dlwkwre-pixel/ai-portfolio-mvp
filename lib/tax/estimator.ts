@@ -1,5 +1,5 @@
 // US tax estimation — planning estimates only, not tax advice
-// All values are 2025 approximations
+// Federal values are 2026 (IRS Rev. Proc. 2025-32, after the 2025 tax law); state tables are approximate
 
 export type FilingStatus = "single" | "married_filing_jointly" | "head_of_household" | "married_filing_separately";
 // "retired" income (Social Security, pension, annuities, withdrawals) is not subject
@@ -23,57 +23,61 @@ export interface TaxBreakdown {
   taxableIncome: number;  // AGI minus the standard deduction (what the brackets apply to)
 }
 
-// ── 2025 Federal Income Tax Brackets ─────────────────────────────────────────
+// ── 2026 Federal Income Tax Brackets ─────────────────────────────────────────
 
 const STD_DEDUCTION: Record<FilingStatus, number> = {
-  single: 15_000,
-  married_filing_jointly: 30_000,
-  head_of_household: 22_500,
-  married_filing_separately: 15_000,
+  single: 16_100,
+  married_filing_jointly: 32_200,
+  head_of_household: 24_150,
+  married_filing_separately: 16_100,
 };
+
+export function standardDeduction(filing: FilingStatus): number {
+  return STD_DEDUCTION[filing] ?? STD_DEDUCTION.single;
+}
 
 type Bracket = { upTo: number; rate: number };
 
 const FEDERAL_BRACKETS: Record<FilingStatus, Bracket[]> = {
   single: [
-    { upTo: 11_925, rate: 0.10 },
-    { upTo: 48_475, rate: 0.12 },
-    { upTo: 103_350, rate: 0.22 },
-    { upTo: 197_300, rate: 0.24 },
-    { upTo: 250_525, rate: 0.32 },
-    { upTo: 626_350, rate: 0.35 },
+    { upTo: 12_400, rate: 0.10 },
+    { upTo: 50_400, rate: 0.12 },
+    { upTo: 105_700, rate: 0.22 },
+    { upTo: 201_775, rate: 0.24 },
+    { upTo: 256_225, rate: 0.32 },
+    { upTo: 640_600, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
   married_filing_jointly: [
-    { upTo: 23_850, rate: 0.10 },
-    { upTo: 96_950, rate: 0.12 },
-    { upTo: 206_700, rate: 0.22 },
-    { upTo: 394_600, rate: 0.24 },
-    { upTo: 501_050, rate: 0.32 },
-    { upTo: 751_600, rate: 0.35 },
+    { upTo: 24_800, rate: 0.10 },
+    { upTo: 100_800, rate: 0.12 },
+    { upTo: 211_400, rate: 0.22 },
+    { upTo: 403_550, rate: 0.24 },
+    { upTo: 512_450, rate: 0.32 },
+    { upTo: 768_700, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
   head_of_household: [
-    { upTo: 17_000, rate: 0.10 },
-    { upTo: 64_850, rate: 0.12 },
-    { upTo: 103_350, rate: 0.22 },
-    { upTo: 197_300, rate: 0.24 },
-    { upTo: 250_500, rate: 0.32 },
-    { upTo: 626_350, rate: 0.35 },
+    { upTo: 17_700, rate: 0.10 },
+    { upTo: 67_450, rate: 0.12 },
+    { upTo: 105_700, rate: 0.22 },
+    { upTo: 201_750, rate: 0.24 },
+    { upTo: 256_200, rate: 0.32 },
+    { upTo: 640_600, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
   married_filing_separately: [
-    { upTo: 11_925, rate: 0.10 },
-    { upTo: 48_475, rate: 0.12 },
-    { upTo: 103_350, rate: 0.22 },
-    { upTo: 197_300, rate: 0.24 },
-    { upTo: 250_525, rate: 0.32 },
-    { upTo: 375_800, rate: 0.35 },
+    { upTo: 12_400, rate: 0.10 },
+    { upTo: 50_400, rate: 0.12 },
+    { upTo: 105_700, rate: 0.22 },
+    { upTo: 201_775, rate: 0.24 },
+    { upTo: 256_225, rate: 0.32 },
+    { upTo: 384_350, rate: 0.35 },
     { upTo: Infinity, rate: 0.37 },
   ],
 };
 
-function applyBrackets(taxableIncome: number, brackets: Bracket[]): { tax: number; marginalRate: number } {
+export function applyBrackets(taxableIncome: number, brackets: Bracket[]): { tax: number; marginalRate: number } {
   if (taxableIncome <= 0) return { tax: 0, marginalRate: brackets[0].rate };
   let tax = 0;
   let prev = 0;
@@ -91,7 +95,7 @@ function applyBrackets(taxableIncome: number, brackets: Bracket[]): { tax: numbe
 
 // ── FICA & SE Tax ─────────────────────────────────────────────────────────────
 
-const SS_WAGE_BASE = 176_100; // 2025
+const SS_WAGE_BASE = 184_500; // 2026
 const SS_RATE_EMPLOYEE = 0.062;
 const MEDICARE_RATE_EMPLOYEE = 0.0145;
 const ADDITIONAL_MEDICARE_RATE = 0.009; // on wages over $200k single / $250k MFJ
@@ -481,6 +485,10 @@ export interface BracketHeadroom {
   roomToNext: number;         // dollars of taxable income before the next bracket (Infinity at top)
 }
 
+export function federalBrackets(filing: FilingStatus): Bracket[] {
+  return FEDERAL_BRACKETS[filing] ?? FEDERAL_BRACKETS.single;
+}
+
 export function federalBracketHeadroom(taxableIncome: number, filing: FilingStatus): BracketHeadroom {
   const brackets = FEDERAL_BRACKETS[filing];
   const segments: BracketSegment[] = [];
@@ -510,15 +518,15 @@ export function federalBracketHeadroom(taxableIncome: number, filing: FilingStat
 // (built around wages + FICA), this handles the three income types a retiree actually
 // has: ordinary income (tax-deferred withdrawals, RMDs, Roth conversions), long-term
 // capital gains (taxable-account withdrawals), and Social Security (partially taxable).
-// 2025 figures. Planning estimates only, not tax advice. State tax not modeled here.
+// 2026 figures. Planning estimates only, not tax advice. State tax not modeled here.
 
 // Long-term capital gains brackets — thresholds are on TAXABLE INCOME (gains stack on top
 // of ordinary taxable income to determine the 0% / 15% / 20% rate).
 const LTCG_BRACKETS: Record<FilingStatus, { zeroUpTo: number; fifteenUpTo: number }> = {
-  single:                     { zeroUpTo: 48_350, fifteenUpTo: 533_400 },
-  married_filing_jointly:     { zeroUpTo: 96_700, fifteenUpTo: 600_050 },
-  head_of_household:          { zeroUpTo: 64_750, fifteenUpTo: 566_700 },
-  married_filing_separately:  { zeroUpTo: 48_350, fifteenUpTo: 300_000 },
+  single:                     { zeroUpTo: 49_450, fifteenUpTo: 545_500 },
+  married_filing_jointly:     { zeroUpTo: 98_900, fifteenUpTo: 613_700 },
+  head_of_household:          { zeroUpTo: 66_200, fifteenUpTo: 579_600 },
+  married_filing_separately:  { zeroUpTo: 49_450, fifteenUpTo: 306_850 },
 };
 
 // Provisional-income thresholds that govern how much Social Security is taxable.
@@ -541,7 +549,7 @@ export function taxableSocialSecurity(ssAnnual: number, otherIncome: number, fil
 }
 
 // Long-term capital gains tax, stacked on top of ordinary taxable income.
-function longTermCapGainsTax(gains: number, ordinaryTaxable: number, filing: FilingStatus): number {
+export function longTermCapGainsTax(gains: number, ordinaryTaxable: number, filing: FilingStatus): number {
   if (gains <= 0) return 0;
   const { zeroUpTo, fifteenUpTo } = LTCG_BRACKETS[filing];
   let remaining = gains;

@@ -47,7 +47,7 @@ import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
-import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax, retirementStateTax } from "@/lib/tax/estimator";
+import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax, retirementStateTax, standardDeduction } from "@/lib/tax/estimator";
 import { contributionLimits, iraLimitForAge } from "@/lib/tax/contribution-limits";
 import { compute401k } from "@/lib/tax/retirement-401k";
 import Plan401kSection from "./plan-401k-section";
@@ -445,7 +445,7 @@ function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => numbe
     // 2) Roth conversion — fill ordinary income up to a target taxable level in low-income years
     let conversion = 0;
     if (p.rothConversions && age < convUntil && taxDeferred > 0 && (p.conversionFillToTaxable ?? 0) > 0) {
-      const std = STD_DEDUCTION_BY_FILING[p.filing];
+      const std = standardDeduction(p.filing);
       const taxableSSApprox = 0; // pre-claim or low income → little SS taxation; conservative
       const ordinarySoFar = rmd + taxableSSApprox;
       const targetOrdinary = (p.conversionFillToTaxable ?? 0) + std; // gross ordinary income to hit target taxable
@@ -512,11 +512,6 @@ function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => numbe
     totalConversions: Math.round(totalConversions), startTotal: Math.round(startTotal),
   };
 }
-
-// Standard deduction by filing status (kept in sync with the estimator; used for conversion targeting).
-const STD_DEDUCTION_BY_FILING: Record<FilingStatus, number> = {
-  single: 15_000, married_filing_jointly: 30_000, head_of_household: 22_500, married_filing_separately: 15_000,
-};
 
 // Top of the 12% federal bracket (2025) — the usual ceiling to fill with Roth conversions
 // in low-income early-retirement years (stay in the 10–12% bracket, avoid the 22% jump).
