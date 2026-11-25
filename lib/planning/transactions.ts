@@ -130,7 +130,7 @@ export function isPersonToPerson(merchant: string): boolean {
 const TRANSFER_RE = /\b(payment\s*(-\s*)?thank\s*you|autopay|auto\s*pay|online\s+(banking\s+)?transfer|transfer\s+(to|from)|internal\s+transfer|credit\s*card\s+(payment|pmt)|card\s*(payment|pmt)|epay|e-payment|mobile\s+payment|payment\s+received|crcardpmt|cc\s*pymt|to\s+savings|from\s+savings|to\s+checking|from\s+checking)\b/i;
 const REFUND_RE = /\b(refund|return|reversal|credit\s+adj|merchant\s+credit|chargeback)\b/i;
 
-const PAYROLL_RE = /\b(payroll|direct\s*dep(osit)?|dir\s*dep|salary|paycheck|wages?|ppd|net\s*pay)\b/i;
+const PAYROLL_RE = /\b(payroll|direct\s*dep(osit)?|dir\s*dep|salary|paycheck|wages?|net\s*pay)\b/i;
 export function looksLikePayroll(text: string): boolean {
   return PAYROLL_RE.test(text);
 }

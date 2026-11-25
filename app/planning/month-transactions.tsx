@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual } from "./planning-actions";
-import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets, markTransactionsReviewed } from "./planning-actions";
+import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets, markTransactionsReviewed, markTransactionAsIncome } from "./planning-actions";
 import { NEW_PAYCHECK_BUCKET, guessBucket, isSavingsAdjustment, needsReview, payEvents, type CashFlowTransaction } from "@/lib/planning/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { EXPENSE_CATEGORIES, categoryOf } from "@/lib/planning/expense-categories";
@@ -92,6 +92,15 @@ export default function MonthTransactions({
 
   function handleBucket(t: CashFlowTransaction, value: string) {
     setNotice(null);
+    if (value === "__income__") {
+      // Money back that isn't a refund on a bill: count it as one-time income instead.
+      startTransition(async () => {
+        const res = await markTransactionAsIncome(t.id);
+        setNotice(res.error ? { text: res.error, tone: "err" } : { text: `${t.merchant} now counts as one-time income.`, tone: "ok" });
+        router.refresh();
+      });
+      return;
+    }
     if (value === "__transfer__") {
       // Money moved between the user's own accounts: not income or spending. Removing it
       // (bank rows are remembered so they don't come back) is exactly that.
@@ -267,6 +276,9 @@ export default function MonthTransactions({
               )}
               {t.direction === "in" && pool.length === 0 && (
                 <option value={NEW_PAYCHECK_BUCKET}>Regular paycheck (replaces estimate)</option>
+              )}
+              {t.direction === "out" && t.amount < 0 && (
+                <option value="__income__">One-time income (not a refund on a bill)</option>
               )}
               <option value="__transfer__">Transfer between my own accounts (not counted)</option>
               {t.direction !== "in" && missingCategories.length > 0 && (

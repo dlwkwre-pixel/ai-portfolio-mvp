@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BankTransaction } from "./plaid";
-import { getDismissedPlaidIds, getSeenTransferIds, markTransfersSeen } from "./plaid";
+import { getDismissedPlaidIds, getPlaidAsIncomeIds, getSeenTransferIds, markTransfersSeen } from "./plaid";
 import { findDuplicateAccounts } from "./account-dedupe";
 import { kvSet } from "@/lib/kv";
 import {
@@ -188,6 +188,10 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
       classified.set(t.id, { kind: "spend", category: categoryFor(t) });
     }
   }
+
+  // Money back the user marked as one-time income stays income.
+  const asIncome = await getPlaidAsIncomeIds(userId);
+  for (const t of posted) if (asIncome.has(t.id) && t.amount < 0) classified.set(t.id, { kind: "income" });
 
   // ── Net savings ──────────────────────────────────────────────────────────────
   // "Saved" should be money that ENTERED savings/investing minus money that LEFT it for

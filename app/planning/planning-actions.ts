@@ -7,7 +7,7 @@ import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/ca
 import { isPersonToPerson, merchantKey, NEW_PAYCHECK_BUCKET, type TxnKind } from "@/lib/planning/transactions";
 import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 import { isValidFrequency, frequencyForInterval, type BillMode } from "@/lib/planning/frequency";
-import { dismissPlaidTransaction } from "@/lib/connections/plaid";
+import { dismissPlaidTransaction, markPlaidAsIncome } from "@/lib/connections/plaid";
 import { kvAddIds } from "@/lib/kv";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1683,6 +1683,29 @@ export async function deleteTransaction(id: string): Promise<{ error?: string }>
       await supabase.from("cash_flow_transactions").delete().eq("user_id", user.id)
         .in("external_id", [`tosavings:${row.external_id}`, `fromsavings:${row.external_id}`]);
     }
+  }
+  revalidatePath("/planning");
+  return {};
+}
+
+// Money back that isn't a refund on a bill (a return, selling something, random cash) →
+// one-time income. Bank rows are remembered so the next sync keeps it that way.
+export async function markTransactionAsIncome(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const { data: row } = await supabase.from("cash_flow_transactions")
+    .select("amount, direction, source, external_id").eq("id", id).eq("user_id", user.id).maybeSingle();
+  if (!row) return { error: "Transaction not found." };
+  if (row.direction !== "out" || Number(row.amount) >= 0) return { error: "Only money that came back to you can be counted as income." };
+  const { error } = await supabase.from("cash_flow_transactions")
+    .update({ direction: "in", amount: Math.abs(Number(row.amount)), cash_flow_item_id: null, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("user_id", user.id);
+  if (error) return { error: error.message };
+  if (row.source === "plaid" && row.external_id) {
+    try { await markPlaidAsIncome(user.id, row.external_id); } catch { /* best-effort */ }
+    // A refund paid into savings carried a "paid from savings" adjustment; income doesn't.
+    await supabase.from("cash_flow_transactions").delete().eq("user_id", user.id).eq("external_id", `fromsavings:${row.external_id}`);
   }
   revalidatePath("/planning");
   return {};

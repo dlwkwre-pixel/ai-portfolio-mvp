@@ -209,6 +209,17 @@ export async function markTransfersSeen(userId: string, ids: string[]): Promise<
   await kvSet(key, { ids: Array.from(new Set([...prev, ...ids])).slice(-2000) });
 }
 
+// Money back the user said to count as one-time income (not a refund against a bill) —
+// remembered so the next sync doesn't turn it back into negative spending.
+export async function markPlaidAsIncome(userId: string, externalId: string): Promise<void> {
+  const key = `plaidasincome:${userId}`;
+  const ids = (await kvGet<{ ids?: string[] }>(key))?.ids ?? [];
+  if (!ids.includes(externalId)) await kvSet(key, { ids: [...ids, externalId].slice(-2000) });
+}
+export async function getPlaidAsIncomeIds(userId: string): Promise<Set<string>> {
+  return new Set((await kvGet<{ ids?: string[] }>(`plaidasincome:${userId}`))?.ids ?? []);
+}
+
 export async function getDismissedPlaidIds(userId: string): Promise<Set<string>> {
   return new Set((await kvGet<{ ids?: string[] }>(`plaiddismissed:${userId}`))?.ids ?? []);
 }
