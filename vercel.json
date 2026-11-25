@@ -17,11 +17,11 @@
     },
     {
       "path": "/api/cron/daily-snapshot",
-      "schedule": "0 20 * * *"
+      "schedule": "5 21 * * *"
     },
     {
       "path": "/api/cron/email-digest",
-      "schedule": "0 21 * * *"
+      "schedule": "20 21 * * *"
     },
     {
       "path": "/api/cron/generate-scenarios",

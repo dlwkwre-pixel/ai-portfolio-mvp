@@ -12,26 +12,21 @@ import { sanitizeSnapshots, isExternalCashFlow } from "@/lib/portfolio/benchmark
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
 
-// Get the current hour (0-23) in the user's local timezone
-function getLocalHour(date: Date, timezone: string): number {
+// The user's local calendar date (YYYY-MM-DD).
+function localDate(date: Date, timezone: string): string {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      hour12: false,
-      timeZone: timezone,
-    }).formatToParts(date);
-    const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0");
-    return h === 24 ? 0 : h; // Intl can return 24 for midnight
+    return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone }).format(date);
   } catch {
-    return date.getUTCHours();
+    return date.toISOString().slice(0, 10);
   }
 }
 
-// Use local timezone date for weekday/month-day checks
-function shouldSendNow(frequency: string, sendHour: number, timezone: string, now: Date): boolean {
-  const localHour = getLocalHour(now, timezone);
-  if (localHour !== sendHour) return false;
-
+// Whether today (in the user's timezone) is a send day for this frequency. The cron runs once a
+// day after the US close, so there's no hour to match — an exact-hour check broke every digest when
+// daylight saving ended and 21:00 UTC moved from 4 PM to 3 PM Chicago. A digest already sent on
+// this local date is skipped, so a manual re-run can't double-send.
+function shouldSendNow(frequency: string, timezone: string, now: Date, lastSentAt: string | null): boolean {
+  if (lastSentAt && localDate(new Date(lastSentAt), timezone) === localDate(now, timezone)) return false;
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       weekday: "long",
@@ -129,7 +124,7 @@ export async function GET(request: Request) {
   // Load all enabled preferences whose frequency matches today
   const { data: allPrefs, error: prefsError } = await adminSupabase
     .from("portfolio_digest_preferences")
-    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, include_top_movers, include_benchmark, include_ai_recs, include_week_ahead, include_news, include_transactions, include_cash, attach_pdf, email_override, send_hour, timezone")
+    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, include_top_movers, include_benchmark, include_ai_recs, include_week_ahead, include_news, include_transactions, include_cash, attach_pdf, email_override, send_hour, timezone, last_sent_at")
     .eq("enabled", true);
 
   if (prefsError) {
@@ -138,7 +133,7 @@ export async function GET(request: Request) {
   }
 
   const todayPrefs = (allPrefs ?? []).filter((p) =>
-    shouldSendNow(p.frequency, p.send_hour ?? 16, p.timezone ?? "America/Chicago", now)
+    shouldSendNow(p.frequency, p.timezone ?? "America/Chicago", now, p.last_sent_at ?? null)
   );
   if (todayPrefs.length === 0) {
     return NextResponse.json({ message: "No digests to send today.", sent: 0 });
