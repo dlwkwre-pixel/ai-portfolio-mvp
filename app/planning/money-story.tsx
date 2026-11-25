@@ -8,10 +8,10 @@ import { MONTH_NAMES } from "./planning-shared";
 // investments → what's still sitting in checking, then how the balance sheet moved. Cash
 // Flow explains the flow; net worth is where it ends up.
 
-function snapshotChange(history: NetWorthSnapshot[], year: number, month: number) {
+function snapshotChange(history: NetWorthSnapshot[], year: number, month: number, fromMonth = month) {
   if (history.length === 0) return null;
   const sorted = history.slice().sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
-  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const monthStart = `${year}-${String(fromMonth).padStart(2, "0")}-01`;
   const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const before = sorted.filter((s) => s.snapshot_date < monthStart).pop()
     ?? sorted.find((s) => s.snapshot_date >= monthStart && s.snapshot_date < nextMonth);
@@ -23,7 +23,7 @@ function snapshotChange(history: NetWorthSnapshot[], year: number, month: number
 }
 
 export default function MoneyStory({
-  income, spent, pendingPlanned = 0, setAside = 0, setAsideNotMoved = 0, setAsideLabels = [], saved, invested = null, year, month, netWorthHistory, isPrivate,
+  income, spent, pendingPlanned = 0, setAside = 0, setAsideNotMoved = 0, setAsideLabels = [], saved, invested = null, year, month, fromMonth = month, netWorthHistory, isPrivate, rangeSwitch,
 }: {
   income: number;
   spent: number;          // everyday spending recorded this month (bills that aren't monthly excluded)
@@ -35,8 +35,10 @@ export default function MoneyStory({
   invested?: number | null; // net moved into investing accounts this month (from bank sync)
   year: number;
   month: number;
+  fromMonth?: number;      // earlier than month → the numbers cover fromMonth..month (year to date)
   netWorthHistory: NetWorthSnapshot[];
   isPrivate: boolean;
+  rangeSwitch?: React.ReactNode;
 }) {
   const money = (n: number) => (isPrivate ? "••••" : `$${Math.round(Math.abs(n)).toLocaleString()}`);
   const signed = (n: number) => (isPrivate ? "••••" : `${n >= 0 ? "+" : "−"}$${Math.round(Math.abs(n)).toLocaleString()}`);
@@ -44,8 +46,10 @@ export default function MoneyStory({
   // Short only because more went to savings than the month left over: the extra came out
   // of cash already in the bank, which is a choice, not a problem.
   const fundedFromCash = leftInChecking < 0 && income - spent - pendingPlanned - setAside >= 0;
-  const change = snapshotChange(netWorthHistory, year, month);
+  const change = snapshotChange(netWorthHistory, year, month, fromMonth);
   const name = MONTH_NAMES[month - 1];
+  const multi = fromMonth < month;
+  const span = multi ? "so far this year" : "this month";
 
   const steps: { label: string; value: string; tone: string }[] = [
     { label: "Came in", value: money(income), tone: "var(--green)" },
@@ -58,12 +62,17 @@ export default function MoneyStory({
       ? { label: "Still in checking", value: money(leftInChecking), tone: "var(--text-primary)" }
       : fundedFromCash
         ? { label: "From cash you already had", value: money(leftInChecking), tone: "var(--text-secondary)" }
-        : { label: "Short this month", value: money(leftInChecking), tone: "var(--red)" },
+        : { label: multi ? "Short" : "Short this month", value: money(leftInChecking), tone: "var(--red)" },
   ];
 
   return (
     <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 18px", marginBottom: "10px", display: "flex", flexDirection: "column", gap: "12px" }}>
-      <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{`Where ${name}'s money went`}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+          {multi ? `Where your money went, ${MONTH_NAMES[fromMonth - 1].slice(0, 3)}–${name.slice(0, 3)} ${year}` : `Where ${name}'s money went`}
+        </div>
+        {rangeSwitch}
+      </div>
       <div style={{ display: "flex", alignItems: "stretch", gap: "6px", flexWrap: "wrap" }}>
         {steps.map((st, i) => (
           <div key={st.label} style={{ display: "flex", alignItems: "center", gap: "6px", flex: "1 1 130px", minWidth: 0 }}>
@@ -84,16 +93,16 @@ export default function MoneyStory({
             : `${money(saved)} already moved to savings or investments. `
           : saved < 0
             ? `${money(saved)} more came out of savings than went in (bills paid straight from savings, like rent). `
-            : "Nothing moved to savings or investments yet this month. "}
-        {setAside > 0.5 ? `${money(setAside)} is set aside this month for ${setAsideLabels.join(", ") || "bills that aren't monthly"}, earmarked in savings until the bill comes${setAsideNotMoved > 0.5 ? `; ${money(setAsideNotMoved)} of it is still in checking, so move it over` : ""}. ` : ""}
+            : `Nothing moved to savings or investments ${multi ? "so far this year" : "yet this month"}. `}
+        {setAside > 0.5 ? `${money(setAside)} ${multi ? "has been" : "is"} set aside ${span} for ${setAsideLabels.join(", ") || "bills that aren't monthly"}, earmarked in savings until the bill comes${setAsideNotMoved > 0.5 ? `; ${money(setAsideNotMoved)} of it is still in checking, so move it over` : ""}. ` : ""}
         {pendingPlanned > 0 ? `${money(pendingPlanned)} of planned bills isn't recorded yet and is held back from what's left. ` : ""}
-        {fundedFromCash ? `You moved more to savings than this month left over, so ${money(leftInChecking)} came from cash you already had. ` : ""}
+        {fundedFromCash ? `You moved more to savings than ${multi ? "these months" : "this month"} left over, so ${money(leftInChecking)} came from cash you already had. ` : ""}
         {leftInChecking > 0 ? `${money(leftInChecking)} is still in checking, so decide below where it should go.` : ""}
       </p>
       {change && (
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px", flexWrap: "wrap" }}>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-            {"Net worth this month "}
+            {`Net worth ${span} `}
             <strong style={{ fontFamily: "var(--font-mono)", color: change.nw >= 0 ? "var(--green)" : "var(--red)" }}>{signed(change.nw)}</strong>
             {change.inv !== null && ` (investments ${signed(change.inv)}, cash and everything else ${signed(change.nw - change.inv)})`}
             {` · now ${money(change.endValue)}`}

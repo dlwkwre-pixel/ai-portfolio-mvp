@@ -11,12 +11,15 @@ import { parseDay, formatDay } from "@/lib/dates";
 export type CombinedChartPoint = { date: string; total: number };
 
 const TIMEFRAMES = [
-  { label: "1M", days: 30 },
-  { label: "3M", days: 90 },
-  { label: "YTD", days: -1 },
-  { label: "1Y", days: 365 },
-  { label: "All", days: 0 },
+  { label: "1W", days: 7, period: "past week" },
+  { label: "1M", days: 30, period: "past month" },
+  { label: "3M", days: 90, period: "past 3 months" },
+  { label: "6M", days: 182, period: "past 6 months" },
+  { label: "YTD", days: -1, period: "this year" },
+  { label: "1Y", days: 365, period: "past year" },
+  { label: "All", days: 0, period: "all time" },
 ];
+const TF_KEY = "bt-dashboard-timeframe";
 
 function filterByDays(data: CombinedChartPoint[], days: number): CombinedChartPoint[] {
   if (days === 0) return data;
@@ -25,7 +28,11 @@ function filterByDays(data: CombinedChartPoint[], days: number): CombinedChartPo
     : new Date(Date.now() - days * 86_400_000);
   // parseDay: bare "YYYY-MM-DD" through new Date() is UTC midnight, which
   // compares (and displays) a day early in US timezones.
-  return data.filter(d => parseDay(d.date) >= cutoff);
+  const inRange = data.filter(d => parseDay(d.date) >= cutoff);
+  // Start from the last value before the window, so a short period with sparse snapshots
+  // still measures change from where it began instead of collapsing to one point.
+  const before = data.filter(d => parseDay(d.date) < cutoff).at(-1);
+  return before ? [before, ...inRange] : inRange;
 }
 
 function formatMoney(v: number) {
@@ -85,7 +92,18 @@ export default function CombinedChartClient({
   netWorthData?: CombinedChartPoint[];
 }) {
   const [view, setView] = useState<View>("portfolio");
-  const [tfDays, setTfDays] = useState(0);
+  const [tfDays, setTfDaysState] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const saved = Number(localStorage.getItem(TF_KEY));
+      return TIMEFRAMES.some(tf => tf.days === saved) ? saved : 0;
+    } catch { return 0; }
+  });
+  const setTfDays = (days: number) => {
+    setTfDaysState(days);
+    try { localStorage.setItem(TF_KEY, String(days)); } catch {}
+  };
+  const periodLabel = TIMEFRAMES.find(tf => tf.days === tfDays)?.period ?? "this period";
   const [isPrivate, setIsPrivate] = useState(() => {
     if (typeof window === "undefined") return false;
     try { return localStorage.getItem("bt-privacy-mode") === "true"; } catch { return false; }
@@ -175,6 +193,39 @@ export default function CombinedChartClient({
     </div>
   ) : null;
 
+  const timeframePicker = (
+    <div role="group" aria-label="Time period" style={{ display: "flex", gap: "2px", padding: "2px", background: "var(--surface-005)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflowX: "auto", maxWidth: "100%" }}>
+      {TIMEFRAMES.map(tf => {
+        const active = tfDays === tf.days;
+        return (
+          <button
+            key={tf.label}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setTfDays(tf.days)}
+            style={{
+              minWidth: "38px",
+              minHeight: "32px",
+              padding: "0 9px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "var(--text-2xs)",
+              fontWeight: 600,
+              fontFamily: "var(--font-mono)",
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+              transition: "background 120ms, color 120ms",
+              background: active ? "rgba(14,165,160,0.18)" : "transparent",
+              color: active ? "var(--brand-blue)" : "var(--text-muted)",
+            }}
+          >
+            {tf.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (filtered.length < 2) {
     return (
       <div>
@@ -187,8 +238,11 @@ export default function CombinedChartClient({
         <div style={{ padding: "20px 0", textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
           {view === "networth"
             ? "No net worth history yet — update your balance sheet in Planning to start tracking."
-            : "Not enough snapshots yet — more data will appear as you use the app."}
+            : tfDays !== 0 && activeData.length >= 2
+              ? "No history for this period yet — try a longer one."
+              : "Not enough snapshots yet — more data will appear as you use the app."}
         </div>
+        {activeData.length >= 2 && <div style={{ display: "flex", justifyContent: "center" }}>{timeframePicker}</div>}
       </div>
     );
   }
@@ -218,30 +272,11 @@ export default function CombinedChartClient({
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isUp ? "var(--green)" : "var(--red)" }}>
               ({isUp ? "+" : ""}{changePct.toFixed(2)}%)
             </span>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>this period</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{periodLabel}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-          {TIMEFRAMES.map(tf => (
-            <button
-              key={tf.label}
-              onClick={() => setTfDays(tf.days)}
-              style={{
-                padding: "3px 8px",
-                borderRadius: "6px",
-                fontSize: "10px",
-                fontWeight: 600,
-                border: "1px solid",
-                cursor: "pointer",
-                transition: "all 120ms",
-                borderColor: tfDays === tf.days ? "var(--brand-blue)" : "var(--border-subtle)",
-                background: tfDays === tf.days ? "rgba(14,165,160,0.15)" : "transparent",
-                color: tfDays === tf.days ? "var(--brand-blue)" : "var(--text-muted)",
-              }}
-            >
-              {tf.label}
-            </button>
-          ))}
+          {timeframePicker}
           {view === "portfolio" && (
             <button
               onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}

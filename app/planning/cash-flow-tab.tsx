@@ -1054,6 +1054,22 @@ function MonthlySpendChart({
   );
 }
 
+// "This month | Year to date" switch for a section that can show either.
+type SectionRange = "month" | "ytd";
+function RangeSwitch({ value, onChange, monthLabel }: { value: SectionRange; onChange: (v: SectionRange) => void; monthLabel: string }) {
+  return (
+    <div role="group" aria-label="Period" style={{ display: "inline-flex", background: "var(--surface-005)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "2px", gap: "2px", flexShrink: 0 }}>
+      {([["month", monthLabel], ["ytd", "Year to date"]] as const).map(([v, label]) => (
+        <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}
+          style={{ minHeight: "32px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", fontSize: "var(--text-2xs)", fontWeight: 700, fontFamily: "var(--font-body)",
+            background: value === v ? "rgba(14,165,160,0.18)" : "transparent", color: value === v ? "var(--brand-blue)" : "var(--text-muted)" }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Section heading for the month flow: 1 Money in → 2 Money out → 3 Left over, then
 // Insights and the plan. Numbered steps are the "do this month" path; unnumbered ones
 // are reference/setup.
@@ -1171,7 +1187,14 @@ export default function CashFlowOS({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
-  const [viewMode, setViewMode] = useState<"monthly" | "annual" | "ytd" | "average">("monthly");
+  const [viewMode, setViewModeState] = useState<"monthly" | "annual" | "ytd" | "average">("monthly");
+  // Money in and "where it went" can show the month or the year so far; the top switch moves both.
+  const [sectionRange, setSectionRange] = useState<SectionRange>("month");
+  const setViewMode = (m: "monthly" | "annual" | "ytd" | "average") => {
+    setViewModeState(m);
+    if (m === "ytd") setSectionRange("ytd");
+    else if (m === "monthly") setSectionRange("month");
+  };
   const [showCal, setShowCal] = useState(false);
   const [addingIncome, setAddingIncome] = useState(false);
 
@@ -1406,6 +1429,46 @@ export default function CashFlowOS({
   // Beyond that, money actually left savings (rent paid from savings) and shows as negative.
   const reserveNotMoved = Math.min(reserveThisMonth, Math.max(0, -savedRaw));
   const savedForStory = savedRaw < 0 ? savedRaw + reserveNotMoved : savedRaw;
+  // The same story for any month (the selected month's numbers above, generalized), so the year
+  // so far can be added up month by month.
+  function storyFor(y: number, m: number): { income: number; spent: number; pending: number; setAside: number; notMoved: number; saved: number; invested: number | null } {
+    const p = y * 12 + (m - 1);
+    const periodic = expenseItems.filter((i) => {
+      const n = intervalMonths(i.frequency);
+      return n && i.bill_mode !== "when_paid" && lineFor(i, y, m).periodic;
+    });
+    const setAside = periodic.reduce((sum, i) => sum + lineFor(i, y, m).plan, 0);
+    const periodicIds = new Set(periodic.map((i) => i.id));
+    const used = transactions
+      .filter((t) => t.period_year === y && t.period_month === m && (t.external_id ?? "").startsWith("fromsavings:"))
+      .reduce((sum, t) => {
+        const base = transactions.find((b) => b.external_id === t.external_id!.slice("fromsavings:".length));
+        return base?.cash_flow_item_id && periodicIds.has(base.cash_flow_item_id) ? sum + Math.abs(t.amount) : sum;
+      }, 0);
+    const raw = savedFor(y, m) - setAside + used;
+    const notMoved = Math.min(setAside, Math.max(0, -raw));
+    const blend = sumBlendedExpenses(p, p);
+    return {
+      income: incomeFor(y, m).total,
+      spent: Math.max(0, blend.recordedTotal + blend.setAsideTotal - setAside),
+      pending: blend.assumedTotal,
+      setAside,
+      notMoved,
+      saved: raw < 0 ? raw + notMoved : raw,
+      invested: investedByMonth[`${y}-${String(m).padStart(2, "0")}`] ?? null,
+    };
+  }
+  const ytdIncomeMonths = sectionRange === "ytd"
+    ? Array.from({ length: selMonth }, (_, i) => ({ month: i + 1, r: incomeFor(selYear, i + 1) }))
+    : [];
+  const ytdIncomeTotal = ytdIncomeMonths.reduce((sum, x) => sum + x.r.total, 0);
+  const ytdStory = sectionRange === "ytd"
+    ? Array.from({ length: selMonth }, (_, i) => storyFor(selYear, i + 1)).reduce((a, b) => ({
+        income: a.income + b.income, spent: a.spent + b.spent, pending: a.pending + b.pending, setAside: a.setAside + b.setAside,
+        notMoved: a.notMoved + b.notMoved, saved: a.saved + b.saved,
+        invested: a.invested === null && b.invested === null ? null : (a.invested ?? 0) + (b.invested ?? 0),
+      }))
+    : null;
   const selBlend = sumBlendedExpenses(selPeriod, selPeriod);
   const unusualCharges = useMemo(() => {
     const ok = new Set(dismissedAlerts);
@@ -1902,7 +1965,7 @@ export default function CashFlowOS({
           </div>
         </div>
         <p style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 12px" }}>
-          Showing {MONTH_NAMES[selMonth - 1]} {selYear} · {viewMode[0].toUpperCase() + viewMode.slice(1)}. Everything below follows this month: what came in, what went out, and what&apos;s left. Your plan (at the bottom) repeats every month.
+          Showing {MONTH_NAMES[selMonth - 1]} {selYear} · {viewMode[0].toUpperCase() + viewMode.slice(1)}. Everything below follows this month: what came in, what went out, and what&apos;s left. Money in and &ldquo;where it went&rdquo; can also show the year so far. Your plan (at the bottom) repeats every month.
         </p>
         {viewMode === "average" && !avgMonthly ? (
           <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center", padding: "8px 0" }}>
@@ -1962,9 +2025,17 @@ export default function CashFlowOS({
       <CfSectionTitle step="1" title="Money in" hint={`What actually came in during ${MONTH_NAMES[selMonth - 1]}.`} />
       <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", marginBottom: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
-            <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
+              <RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />
+            </span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
-              {showReceived ? (
+              {sectionRange === "ytd" ? (
+                <>
+                  {`${selMonth > 1 ? `Jan–${MONTH_NAMES[selMonth - 1].slice(0, 3)}` : "Jan"} ${selYear}: ${ph(fmt(ytdIncomeTotal))}`}
+                  <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` · ${ph(fmt(ytdIncomeTotal / selMonth))}/mo average`}</span>
+                </>
+              ) : showReceived ? (
                 <>
                   {`Received ${ph(fmt(selReceived))}`}
                   <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` · ${ph(fmt(selIncome.upcomingRegular))} still due · ${ph(fmt(selIncome.total))} for ${MONTH_NAMES[selMonth - 1]}`}</span>
@@ -1977,6 +2048,31 @@ export default function CashFlowOS({
               )}
             </span>
           </div>
+          {sectionRange === "ytd" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {ytdIncomeMonths.map(({ month, r }) => (
+              <div key={month} style={{ display: "flex", justifyContent: "space-between", gap: "10px", padding: "6px 0", borderTop: "1px solid var(--border-subtle)", fontSize: "12px", fontFamily: "var(--font-body)" }}>
+                <span style={{ color: "var(--text-secondary)" }}>
+                  {MONTH_NAMES[month - 1]}
+                  <span style={{ color: "var(--text-tertiary)", fontSize: "11px" }}>
+                    {r.status === "recorded" ? " · received" : r.status === "in-progress" ? " · so far + still due" : " · expected (nothing recorded)"}
+                    {r.bonusReceived ? " · incl. bonus" : r.bonusExpected > 0 ? " · incl. expected bonus" : ""}
+                  </span>
+                </span>
+                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", flexShrink: 0 }}>{ph(fmt(r.total))}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", padding: "8px 0 0", borderTop: "1px solid var(--border-subtle)", fontSize: "12px", fontWeight: 700, fontFamily: "var(--font-body)", color: "var(--text-primary)" }}>
+              <span>{`Total, ${selYear} so far`}</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{ph(fmt(ytdIncomeTotal))}</span>
+            </div>
+            {ytdIncomeMonths.some(({ r }) => r.status === "expected") && (
+              <p style={{ margin: "6px 0 0", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                Months marked expected have no paychecks recorded, so your planned pay stands in for them.
+              </p>
+            )}
+          </div>
+          ) : (<>
           {/* What this month's income figure is made of — the plan, or what was recorded. */}
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
             {selIncome.recordedCount === 0
@@ -2077,6 +2173,7 @@ export default function CashFlowOS({
               </button>
             )}
           </div>
+          </>)}
       </div>
 
       <CfSectionTitle step="2" title="Money out" hint={`What you spent in ${MONTH_NAMES[selMonth - 1]}, and how it compares to your plan.`} />
@@ -2320,9 +2417,17 @@ export default function CashFlowOS({
 
       <CfSectionTitle step="3" title="Left over" hint="Income minus spending, and where it should go." />
       <SinkingFunds funds={sinkingFunds} isPrivate={isPrivate} />
-      <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
-        setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
-        saved={savedForStory} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
+      {ytdStory ? (
+        <MoneyStory income={ytdStory.income} spent={ytdStory.spent} pendingPlanned={ytdStory.pending}
+          setAside={ytdStory.setAside} setAsideNotMoved={ytdStory.notMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
+          saved={ytdStory.saved} invested={ytdStory.invested} year={selYear} month={selMonth} fromMonth={1} netWorthHistory={netWorthHistory} isPrivate={isPrivate}
+          rangeSwitch={<RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
+      ) : (
+        <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
+          setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
+          saved={savedForStory} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate}
+          rangeSwitch={<RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
+      )}
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund
