@@ -1235,6 +1235,18 @@ function CountUp({
   return <>{prefix}{formatted}{suffix}</>;
 }
 
+// Same periods as the dashboard's value chart.
+const NW_TIMEFRAMES = [
+  { label: "1W", days: 7, period: "past week" },
+  { label: "1M", days: 30, period: "past month" },
+  { label: "3M", days: 90, period: "past 3 months" },
+  { label: "6M", days: 182, period: "past 6 months" },
+  { label: "YTD", days: -1, period: "this year" },
+  { label: "1Y", days: 365, period: "past year" },
+  { label: "All", days: 0, period: "" },
+];
+const NW_TF_KEY = "bt-planning-nw-timeframe";
+
 function NetWorthHistoryCard({
   history, currentNW, currentAssets, currentLiabilities, isPrivate,
 }: {
@@ -1249,14 +1261,34 @@ function NetWorthHistoryCard({
   const [trimDate, setTrimDate] = useState("");
   const [trimStatus, setTrimStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [tfDays, setTfDaysState] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const saved = Number(localStorage.getItem(NW_TF_KEY));
+      return NW_TIMEFRAMES.some((tf) => tf.days === saved) ? saved : 0;
+    } catch { return 0; }
+  });
+  const setTfDays = (days: number) => {
+    setTfDaysState(days);
+    try { localStorage.setItem(NW_TF_KEY, String(days)); } catch {}
+  };
 
   const today = new Date().toISOString().split("T")[0];
-  const allPoints: { date: string; net_worth: number }[] = [
+  const everyPoint: { date: string; net_worth: number }[] = [
     ...history
       .filter((s) => s.snapshot_date !== today)
       .map((s) => ({ date: s.snapshot_date, net_worth: s.net_worth })),
     { date: today, net_worth: currentNW },
   ].sort((a, b) => a.date.localeCompare(b.date));
+  // The chosen period, starting from the last snapshot before it so the change is measured
+  // from where the period began even when snapshots are sparse.
+  const cutoff = tfDays === 0 ? null
+    : tfDays === -1 ? `${new Date().getFullYear()}-01-01`
+    : new Date(Date.now() - tfDays * 86_400_000).toISOString().slice(0, 10);
+  const inPeriod = cutoff ? everyPoint.filter((p) => p.date.slice(0, 10) >= cutoff) : everyPoint;
+  const beforePeriod = cutoff ? everyPoint.filter((p) => p.date.slice(0, 10) < cutoff).at(-1) : undefined;
+  const allPoints = beforePeriod ? [beforePeriod, ...inPeriod] : inPeriod;
+  const periodText = NW_TIMEFRAMES.find((tf) => tf.days === tfDays)?.period ?? "";
 
   const first = allPoints[0];
   const change = allPoints.length >= 2 ? currentNW - first.net_worth : null;
@@ -1303,7 +1335,7 @@ function NetWorthHistoryCard({
           </div>
           {change != null && (
             <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: isUp ? "var(--green)" : "var(--red)", marginTop: "4px" }}>
-              {isUp ? "▲" : "▼"} {hide ?? (isUp ? "+" : "") + fmt(change)} {hide ? "" : `since ${fmtDate(first.date)}`}
+              {isUp ? "▲" : "▼"} {hide ?? (isUp ? "+" : "") + fmt(change)} {hide ? "" : periodText || `since ${fmtDate(first.date)}`}
             </div>
           )}
         </div>
@@ -1317,7 +1349,7 @@ function NetWorthHistoryCard({
               <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "16px", color }}>{value}</div>
             </div>
           ))}
-          {allPoints.length >= 2 && (
+          {everyPoint.length >= 2 && (
             <button
               onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
               style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px", padding: "0", marginTop: "18px" }}
@@ -1363,6 +1395,22 @@ function NetWorthHistoryCard({
         </div>
       )}
 
+      {everyPoint.length >= 2 && (
+        <div role="group" aria-label="Time period" style={{ display: "flex", gap: "2px", padding: "2px", marginBottom: "10px", width: "fit-content", maxWidth: "100%", overflowX: "auto", background: "var(--surface-005)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+          {NW_TIMEFRAMES.map((tf) => {
+            const active = tfDays === tf.days;
+            return (
+              <button key={tf.label} type="button" aria-pressed={active} onClick={() => setTfDays(tf.days)}
+                style={{ minWidth: "38px", minHeight: "32px", padding: "0 9px", borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer", flexShrink: 0,
+                  fontSize: "var(--text-2xs)", fontWeight: 600, fontFamily: "var(--font-mono)", transition: "background 120ms, color 120ms",
+                  background: active ? "rgba(14,165,160,0.18)" : "transparent", color: active ? "var(--brand-blue)" : "var(--text-muted)" }}>
+                {tf.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {allPoints.length >= 2 ? (
         <ResponsiveContainer width="100%" height={150}>
           <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -1391,7 +1439,7 @@ function NetWorthHistoryCard({
       ) : (
         <div style={{ padding: "16px 0 4px", textAlign: "center" }}>
           <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Your net worth is now being tracked. Return daily and this chart will fill in over time.
+            {everyPoint.length >= 2 ? "No history for this period yet — try a longer one." : "Your net worth is now being tracked. Return daily and this chart will fill in over time."}
           </p>
         </div>
       )}
