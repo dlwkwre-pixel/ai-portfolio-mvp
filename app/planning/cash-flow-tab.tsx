@@ -2328,7 +2328,7 @@ export default function CashFlowOS({
                 {/* Center label */}
                 <text x="98" y="90" textAnchor="middle" dominantBaseline="middle"
                   style={{ fontSize: "10px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  {highlightedCat ?? "Expenses"}
+                  {highlightedCat ?? "Budgeted"}
                 </text>
                 <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
                   style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
