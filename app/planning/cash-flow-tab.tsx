@@ -1188,12 +1188,15 @@ export default function CashFlowOS({
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const [viewMode, setViewModeState] = useState<"monthly" | "annual" | "ytd" | "average">("monthly");
-  // Money in and "where it went" can show the month or the year so far; the top switch moves both.
-  const [sectionRange, setSectionRange] = useState<SectionRange>("month");
+  // Money in, Budget vs. Actual and "where it went" each have their own month / year-to-date
+  // switch; the top switch sets all three.
+  const [incomeRange, setIncomeRange] = useState<SectionRange>("month");
+  const [bvaRange, setBvaRange] = useState<SectionRange>("month");
+  const [storyRange, setStoryRange] = useState<SectionRange>("month");
   const setViewMode = (m: "monthly" | "annual" | "ytd" | "average") => {
     setViewModeState(m);
-    if (m === "ytd") setSectionRange("ytd");
-    else if (m === "monthly") setSectionRange("month");
+    const r: SectionRange | null = m === "ytd" ? "ytd" : m === "monthly" ? "month" : null;
+    if (r) { setIncomeRange(r); setBvaRange(r); setStoryRange(r); }
   };
   const [showCal, setShowCal] = useState(false);
   const [addingIncome, setAddingIncome] = useState(false);
@@ -1290,25 +1293,41 @@ export default function CashFlowOS({
   });
 
   // Which months the Budget vs. Actual numbers cover, so a category's transaction list matches.
-  const drillRange = viewMode === "monthly" ? { from: selYear * 12 + (selMonth - 1), to: selYear * 12 + (selMonth - 1) }
-    : viewMode === "ytd" ? { from: selYear * 12, to: selYear * 12 + Math.max(0, ytdMonths - 1) }
-    : viewMode === "annual" ? { from: selYear * 12, to: selYear * 12 + 11 }
-    : null;
+  // Months Budget vs. Actual covers. Year to date counts only months with something recorded,
+  // so months before tracking began don't pile up as unspent budget.
+  const bvaMonths = useMemo(() => {
+    const sel = selYear * 12 + (selMonth - 1);
+    if (bvaRange === "month") return [sel];
+    const tracked = new Set(expenseActuals.filter((a) => a.period_year === selYear).map((a) => a.period_year * 12 + (a.period_month - 1)));
+    const months: number[] = [];
+    for (let p = selYear * 12; p <= sel; p++) if (tracked.has(p) || p === sel) months.push(p);
+    return months;
+  }, [bvaRange, expenseActuals, selYear, selMonth]);
+  const bvaLabel = bvaMonths.length > 1
+    ? `${MONTH_NAMES[(bvaMonths[0] % 12)].slice(0, 3)}–${MONTH_NAMES[selMonth - 1].slice(0, 3)} ${selYear}`
+    : `${MONTH_NAMES[selMonth - 1]} ${selYear}`;
+  // Which months the Budget vs. Actual numbers cover, so a category's transaction list matches.
+  const drillRange = { from: bvaMonths[0], to: bvaMonths[bvaMonths.length - 1] };
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
       const items = expenseItems.filter(i => categoryOf(i) === cat.label);
-      const budgeted = items.reduce((s, i) => s + lineFor(i, selYear, selMonth).plan, 0);
-      // A periodic bill's payment counts the way its schedule says (spread → amount/N).
-      const actual = items.reduce((s, i) => {
-        const a = expenseActuals.find(x => x.cash_flow_item_id === i.id && x.period_year === selYear && x.period_month === selMonth);
-        return a ? s + lineFor(i, selYear, selMonth).countActual(a.actual_amount) : s;
-      }, 0);
+      let budgeted = 0, actual = 0;
+      for (const p of bvaMonths) {
+        const y = Math.floor(p / 12), m = (p % 12) + 1;
+        for (const i of items) {
+          const line = lineFor(i, y, m);
+          budgeted += line.plan;
+          // A periodic bill's payment counts the way its schedule says (spread → amount/N).
+          const a = expenseActuals.find(x => x.cash_flow_item_id === i.id && x.period_year === y && x.period_month === m);
+          if (a) actual += line.countActual(a.actual_amount);
+        }
+      }
       return { ...cat, items, budgeted, actual };
     // Keep categories with spending but a $0 budget (e.g. a line created from an import) —
     // unplanned spending is exactly what Budget vs. Actual needs to show.
     }).filter(c => c.budgeted > 0 || c.actual !== 0).sort((a, b) => b.budgeted - a.budgeted || b.actual - a.actual);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cashFlowItems, expenseActuals, budgetHistory, selYear, selMonth]);
+  }, [cashFlowItems, expenseActuals, budgetHistory, bvaMonths]);
 
   const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
 
@@ -1368,18 +1387,41 @@ export default function CashFlowOS({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cashFlowItems, transactions],
   );
+  // Expected take-home for a month uses the income plan in effect then: a raise re-bases
+  // the months after it, not the ones before. (401(k) is scaled with the pay.)
+  function expectedIncomeFor(y: number, m: number) {
+    const planNow = incomeItems.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
+    if (planNow <= 0) return effectiveIncome;
+    const planThen = incomeItems.reduce((sum, i) => {
+      const h = getEffectiveBudgetEntry(budgetHistory, i.id, y, m);
+      return sum + (h ? toMonthly(h.amount, h.frequency) : toMonthly(i.amount, i.frequency));
+    }, 0);
+    return effectiveIncome * (planThen / planNow);
+  }
   function incomeFor(y: number, m: number) {
-    return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: effectiveIncome, transactions, bonus: bonusPlan });
+    return computeMonthIncome({ year: y, month: m, today: now, sources: incomeSources, expectedTotal: expectedIncomeFor(y, m), transactions, bonus: bonusPlan });
   }
   function sumIncome(periodFrom: number, periodTo: number) {
-    let total = 0, anyRecorded = false;
+    let total = 0, expected = 0, anyRecorded = false;
     for (let p = periodFrom; p <= periodTo; p++) {
-      const r = incomeFor(Math.floor(p / 12), (p % 12) + 1);
+      const y = Math.floor(p / 12), m = (p % 12) + 1;
+      const r = incomeFor(y, m);
       total += r.total;
+      expected += expectedIncomeFor(y, m) + r.bonusExpected;
       if (r.status !== "expected" || r.extraCount > 0) anyRecorded = true;
     }
-    return { total, expected: effectiveIncome * (periodTo - periodFrom + 1), anyRecorded };
+    return { total, expected, anyRecorded };
   }
+  // Year-to-date starts at the first month with anything recorded: months before tracking
+  // began would only be the plan standing in for real numbers.
+  const firstTrackedPeriod = (() => {
+    const periods = [
+      ...transactions.filter((t) => t.period_year === selYear).map((t) => t.period_year * 12 + (t.period_month - 1)),
+      ...expenseActuals.filter((a) => a.period_year === selYear).map((a) => a.period_year * 12 + (a.period_month - 1)),
+    ];
+    return periods.length > 0 ? Math.min(...periods) : selYear * 12;
+  })();
+  const ytdFromMonth = Math.min(selMonth, (firstTrackedPeriod % 12) + 1);
   const selIncome = incomeFor(selYear, selMonth);
   const selIncomeTxns = transactions.filter(t => t.direction === "in" && t.period_year === selYear && t.period_month === selMonth);
 
@@ -1458,12 +1500,12 @@ export default function CashFlowOS({
       invested: investedByMonth[`${y}-${String(m).padStart(2, "0")}`] ?? null,
     };
   }
-  const ytdIncomeMonths = sectionRange === "ytd"
-    ? Array.from({ length: selMonth }, (_, i) => ({ month: i + 1, r: incomeFor(selYear, i + 1) }))
+  const ytdIncomeMonths = incomeRange === "ytd"
+    ? Array.from({ length: selMonth - ytdFromMonth + 1 }, (_, i) => ({ month: ytdFromMonth + i, r: incomeFor(selYear, ytdFromMonth + i) }))
     : [];
   const ytdIncomeTotal = ytdIncomeMonths.reduce((sum, x) => sum + x.r.total, 0);
-  const ytdStory = sectionRange === "ytd"
-    ? Array.from({ length: selMonth }, (_, i) => storyFor(selYear, i + 1)).reduce((a, b) => ({
+  const ytdStory = storyRange === "ytd"
+    ? Array.from({ length: selMonth - ytdFromMonth + 1 }, (_, i) => storyFor(selYear, ytdFromMonth + i)).reduce((a, b) => ({
         income: a.income + b.income, spent: a.spent + b.spent, pending: a.pending + b.pending, setAside: a.setAside + b.setAside,
         notMoved: a.notMoved + b.notMoved, saved: a.saved + b.saved,
         invested: a.invested === null && b.invested === null ? null : (a.invested ?? 0) + (b.invested ?? 0),
@@ -1522,10 +1564,13 @@ export default function CashFlowOS({
   // budget total for the SAME range, gated on anyLogged (nothing shown if nothing's
   // been logged in range at all, rather than a meaningless "on budget").
   const kpiPeriod = viewMode === "monthly" ? { from: selYear * 12 + (selMonth - 1), to: selYear * 12 + (selMonth - 1) }
-    : viewMode === "ytd" ? { from: selYear * 12, to: selYear * 12 + ytdMonths - 1 }
+    : viewMode === "ytd" ? { from: Math.min(firstTrackedPeriod, selYear * 12 + ytdMonths - 1), to: selYear * 12 + ytdMonths - 1 }
     : viewMode === "annual" ? { from: selYear * 12, to: selYear * 12 + 11 }
     : null; // average has its own range logic below (excludes current month, unbounded start)
   const kpiExpenseBlend = kpiPeriod ? sumBlendedExpenses(kpiPeriod.from, kpiPeriod.to) : null;
+  const ytdTileSpan = kpiPeriod && kpiPeriod.from < kpiPeriod.to
+    ? `${MONTH_NAMES[kpiPeriod.from % 12].slice(0, 3)}–${MONTH_NAMES[kpiPeriod.to % 12].slice(0, 3)}`
+    : String(selYear);
   const kpiExpenseVariance = kpiExpenseBlend?.anyLogged ? kpiExpenseBlend.blendedTotal - kpiExpenseBlend.budgetedTotal : null;
   const kpiExpenseBadge = kpiExpenseVariance === null ? null : {
     text: Math.round(kpiExpenseVariance) === 0 ? "on budget" : `${fmt(Math.abs(kpiExpenseVariance))} ${kpiExpenseVariance > 0 ? "over" : "under"}`,
@@ -1839,9 +1884,9 @@ export default function CashFlowOS({
     startTransition(async () => { await clearCashFlowItemPaid(itemId); router.refresh(); });
   }
 
-  const displayCenter = (totalBudgeted * mult) >= 1000
-    ? `$${((totalBudgeted * mult) / 1000).toFixed(1)}k`
-    : fmt(totalBudgeted * mult);
+  const displayCenter = totalBudgeted >= 1000
+    ? `$${(totalBudgeted / 1000).toFixed(1)}k`
+    : fmt(totalBudgeted);
 
   type KpiTile = { label: string; val: string; color: string; badge?: { text: string; over: boolean } | null; sub?: string | null };
   const kpiTiles: KpiTile[] = viewMode === "average"
@@ -1858,12 +1903,12 @@ export default function CashFlowOS({
         // month you're looking at without having to check the picker at all.
         const monthlyLabel = `${MONTH_NAMES[selMonth - 1]} ${selYear}`;
         return [
-          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income${showReceived ? " so far" : ""}`, val: ph(fmt(showReceived ? selReceived : kpiIncomeTotal)), color: "oklch(0.72 0.19 145)", badge: kpiIncomeBadge },
+          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${ytdTileSpan} Income` : `${monthlyLabel} Income${showReceived ? " so far" : ""}`, val: ph(fmt(showReceived ? selReceived : kpiIncomeTotal)), color: "oklch(0.72 0.19 145)", badge: kpiIncomeBadge },
           // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
           // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
           // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
           // anymore; the badge carries the vs-budget comparison instead, for every range.
-          { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : `${monthlyLabel} Expenses`, val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
+          { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${ytdTileSpan} Expenses` : `${monthlyLabel} Expenses`, val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
             badge: kpiExpenseBadge,
             // Say out loud how much of this is a guess — unrecorded plan lines count at budget.
             sub: kpiExpenseBlend && (kpiExpenseBlend.assumedTotal > 0.5 || kpiExpenseBlend.setAsideTotal > 0.5)
@@ -1873,7 +1918,7 @@ export default function CashFlowOS({
                   kpiExpenseBlend.assumedTotal > 0.5 ? `${ph(fmt(kpiExpenseBlend.assumedTotal))} assumed` : null,
                 ].filter(Boolean).join(" + ")
               : null },
-          { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : `${monthlyLabel} Savings`, val: ph(`${kpiSavings < 0 ? "−" : ""}${fmt(Math.abs(kpiSavings))}`), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)",
+          { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${ytdTileSpan} Savings` : `${monthlyLabel} Savings`, val: ph(`${kpiSavings < 0 ? "−" : ""}${fmt(Math.abs(kpiSavings))}`), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)",
             sub: viewMode === "monthly" && selSaved > 0 ? `${ph(fmt(selSaved))} moved to savings` : null },
           { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
         ];
@@ -2027,13 +2072,13 @@ export default function CashFlowOS({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
-              <RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />
+              <RangeSwitch value={incomeRange} onChange={setIncomeRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />
             </span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)", fontWeight: 600 }}>
-              {sectionRange === "ytd" ? (
+              {incomeRange === "ytd" ? (
                 <>
-                  {`${selMonth > 1 ? `Jan–${MONTH_NAMES[selMonth - 1].slice(0, 3)}` : "Jan"} ${selYear}: ${ph(fmt(ytdIncomeTotal))}`}
-                  <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` · ${ph(fmt(ytdIncomeTotal / selMonth))}/mo average`}</span>
+                  {`${selMonth > ytdFromMonth ? `${MONTH_NAMES[ytdFromMonth - 1].slice(0, 3)}–${MONTH_NAMES[selMonth - 1].slice(0, 3)}` : MONTH_NAMES[selMonth - 1].slice(0, 3)} ${selYear}: ${ph(fmt(ytdIncomeTotal))}`}
+                  <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` · ${ph(fmt(ytdIncomeTotal / Math.max(1, ytdIncomeMonths.length)))}/mo average`}</span>
                 </>
               ) : showReceived ? (
                 <>
@@ -2048,7 +2093,7 @@ export default function CashFlowOS({
               )}
             </span>
           </div>
-          {sectionRange === "ytd" ? (
+          {incomeRange === "ytd" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             {ytdIncomeMonths.map(({ month, r }) => (
               <div key={month} style={{ display: "flex", justifyContent: "space-between", gap: "10px", padding: "6px 0", borderTop: "1px solid var(--border-subtle)", fontSize: "12px", fontFamily: "var(--font-body)" }}>
@@ -2063,7 +2108,7 @@ export default function CashFlowOS({
               </div>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", padding: "8px 0 0", borderTop: "1px solid var(--border-subtle)", fontSize: "12px", fontWeight: 700, fontFamily: "var(--font-body)", color: "var(--text-primary)" }}>
-              <span>{`Total, ${selYear} so far`}</span>
+              <span>{ytdFromMonth > 1 ? `Total since ${MONTH_NAMES[ytdFromMonth - 1]} (when tracking began)` : `Total, ${selYear} so far`}</span>
               <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{ph(fmt(ytdIncomeTotal))}</span>
             </div>
             {ytdIncomeMonths.some(({ r }) => r.status === "expected") && (
@@ -2278,9 +2323,9 @@ export default function CashFlowOS({
                 <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
                   style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                   {isPrivate ? "••••" : (highlightedCat
-                    ? ((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) >= 1000
-                      ? `$${(((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) / 1000).toFixed(1)}k`
-                      : fmt((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult)
+                    ? (catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) >= 1000
+                      ? `$${((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) / 1000).toFixed(1)}k`
+                      : fmt(catData.find(c => c.label === highlightedCat)?.budgeted ?? 0)
                     : displayCenter)}
                 </text>
               </svg>
@@ -2288,8 +2333,11 @@ export default function CashFlowOS({
 
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
-                {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "3px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                  {bvaLabel} — Budget vs. Actual
+                </div>
+                <RangeSwitch value={bvaRange} onChange={setBvaRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />
               </div>
               <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
                 How each category tracked against your plan. To change budget amounts, use Edit my plan at the bottom. Click a slice or category to highlight it.
@@ -2309,9 +2357,9 @@ export default function CashFlowOS({
                 // failing sense — there was no budget — so it's summarized separately, neutrally.
                 const planned = logged.filter((c) => c.budgeted > 0);
                 const unplanned = logged.filter((c) => c.budgeted <= 0);
-                const unplannedTotal = unplanned.reduce((s, c) => s + c.actual, 0) * mult;
-                const totBudget = planned.reduce((s, c) => s + c.budgeted, 0) * mult;
-                const totActual = planned.reduce((s, c) => s + c.actual, 0) * mult;
+                const unplannedTotal = unplanned.reduce((s, c) => s + c.actual, 0);
+                const totBudget = planned.reduce((s, c) => s + c.budgeted, 0);
+                const totActual = planned.reduce((s, c) => s + c.actual, 0);
                 const v = totActual - totBudget;
                 const under = v <= 0;
                 const col = under ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
@@ -2381,12 +2429,12 @@ export default function CashFlowOS({
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                         {/* actual / budget — actual is the lead number now */}
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
-                          <span style={{ color: hasActual ? (over ? "oklch(0.65 0.18 25)" : "var(--text-primary)") : "var(--text-tertiary)", fontWeight: hasActual ? 600 : 400 }}>{hasActual ? ph(fmt(cat.actual * mult)) : "—"}</span>
-                          <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted * mult))}</span>
+                          <span style={{ color: hasActual ? (over ? "oklch(0.65 0.18 25)" : "var(--text-primary)") : "var(--text-tertiary)", fontWeight: hasActual ? 600 : 400 }}>{hasActual ? ph(fmt(cat.actual)) : "—"}</span>
+                          <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted))}</span>
                         </span>
                         {variance !== null && (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
-                            {Math.round(variance) === 0 ? "on budget" : `${ph(fmt(Math.abs(variance) * mult))} ${over ? "over" : "under"}`}
+                            {Math.round(variance) === 0 ? "on budget" : `${ph(fmt(Math.abs(variance)))} ${over ? "over" : "under"}`}
                           </span>
                         )}
                         {isUnplanned && (
@@ -2420,13 +2468,13 @@ export default function CashFlowOS({
       {ytdStory ? (
         <MoneyStory income={ytdStory.income} spent={ytdStory.spent} pendingPlanned={ytdStory.pending}
           setAside={ytdStory.setAside} setAsideNotMoved={ytdStory.notMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
-          saved={ytdStory.saved} invested={ytdStory.invested} year={selYear} month={selMonth} fromMonth={1} netWorthHistory={netWorthHistory} isPrivate={isPrivate}
-          rangeSwitch={<RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
+          saved={ytdStory.saved} invested={ytdStory.invested} year={selYear} month={selMonth} fromMonth={ytdFromMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate}
+          rangeSwitch={<RangeSwitch value={storyRange} onChange={setStoryRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
       ) : (
         <MoneyStory income={selIncome.total} spent={Math.max(0, selBlend.recordedTotal + selBlend.setAsideTotal - reserveThisMonth)} pendingPlanned={selBlend.assumedTotal}
           setAside={reserveThisMonth} setAsideNotMoved={reserveNotMoved} setAsideLabels={sinkingFunds.map((f) => f.label)}
           saved={savedForStory} invested={investedByMonth[`${selYear}-${String(selMonth).padStart(2, "0")}`] ?? null} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate}
-          rangeSwitch={<RangeSwitch value={sectionRange} onChange={setSectionRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
+          rangeSwitch={<RangeSwitch value={storyRange} onChange={setStoryRange} monthLabel={MONTH_NAMES[selMonth - 1].slice(0, 3)} />} />
       )}
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
