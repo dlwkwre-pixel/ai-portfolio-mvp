@@ -21,12 +21,13 @@ function ordinal(n: number): string {
 }
 
 export default function UnrecordedBills({
-  lines, selYear, selMonth, isPrivate, bankLinked = false, transactions = [],
+  lines, selYear, selMonth, isPrivate, bankLinked = false, transactions = [], past = false,
 }: {
   lines: UnrecordedLine[];
   transactions?: CashFlowTransaction[];
   selYear: number;
   selMonth: number;
+  past?: boolean;          // a finished month: unrecorded bills count as $0, not at plan
   isPrivate: boolean;
   bankLinked?: boolean;
 }) {
@@ -136,7 +137,7 @@ export default function UnrecordedBills({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Planned, not recorded yet</span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-          <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{money(total)}</span>{` assumed for ${MONTH_NAMES[selMonth - 1]}`}
+          <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{money(total)}</span>{past ? ` planned for ${MONTH_NAMES[selMonth - 1]}, counted as $0 unless you record it` : ` assumed for ${MONTH_NAMES[selMonth - 1]}`}
         </span>
       </div>
 
@@ -154,7 +155,9 @@ export default function UnrecordedBills({
       {variable.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.6 }}>
-            {`${bankLinked ? "Filled in from your bank as transactions sync" : "Filled in when you import or add transactions"}; counted at plan until then: `}
+            {past
+              ? "Nothing came through for these, so they count as $0. Record one if it was paid another way: "
+              : `${bankLinked ? "Filled in from your bank as transactions sync" : "Filled in when you import or add transactions"}; counted at plan until then: `}
             {variable.map((l, i) => (
               <span key={l.id}>
                 {i > 0 ? " · " : ""}

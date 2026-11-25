@@ -951,8 +951,10 @@ function MonthlySpendChart({
       for (const item of expenseItems) {
         const line = billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, y, m), y, m);
         const actual = idx.get(`${item.id}|${y}|${m}`);
+        // Past months only: a planned bill with nothing recorded didn't happen ($0), but a
+        // non-monthly bill's share is still set aside.
         if (actual !== undefined) { spend += line.countActual(actual); loggedCount++; }
-        else spend += line.assumed;
+        else if (line.periodic && !line.askForPayment) spend += line.assumed;
       }
       if (loggedCount === 0) continue; // nothing logged this month — skip rather than show a pure projection
       out.push({ label: `${MONTH_NAMES[m - 1].slice(0, 3)} ’${String(y).slice(2)}`, spend: Math.round(spend) });
@@ -1349,6 +1351,7 @@ export default function CashFlowOS({
   // callers can show a "vs budget" delta without a second pass over the data.
   function sumBlendedExpenses(periodFrom: number, periodTo: number) {
     let blendedTotal = 0, budgetedTotal = 0, recordedTotal = 0, assumedTotal = 0, setAsideTotal = 0, fullyLoggedMonths = 0, anyLogged = false;
+    const nowPeriodForBlend = now.getFullYear() * 12 + now.getMonth();
     const monthCount = periodTo - periodFrom + 1;
     for (let p = periodFrom; p <= periodTo; p++) {
       const y = Math.floor(p / 12);
@@ -1365,6 +1368,9 @@ export default function CashFlowOS({
         }
         // A periodic bill in a month it isn't due: its share is set aside, not "missing".
         if (line.periodic && !line.askForPayment) { loggedCount++; setAsideTotal += line.assumed; return s + line.assumed; }
+        // A finished month with nothing recorded for a planned bill: it didn't happen. Only
+        // the current (or a future) month assumes the plan for what hasn't come through yet.
+        if (p < nowPeriodForBlend) { loggedCount++; return s; }
         assumedTotal += line.assumed;
         return s + line.assumed;
       }, 0);
@@ -1847,11 +1853,12 @@ export default function CashFlowOS({
         // Not due this month: its share is set aside — settled, not "still to log".
         actualPortion += line.assumed;
         if (line.assumed > 0) { loggedCount++; totalCount++; }
-      } else {
+      } else if (selYear * 12 + (selMonth - 1) >= now.getFullYear() * 12 + now.getMonth()) {
         budgetedPortion += line.assumed;
         // A $0 line with nothing recorded isn't "still to log" — there's nothing expected.
         if (line.assumed > 0) totalCount++;
-      }
+      } // a finished month: nothing recorded means it didn't happen
+
     }
     return {
       actualPortion, budgetedPortion, loggedCount, totalCount,
@@ -2276,7 +2283,8 @@ export default function CashFlowOS({
           </div>
         )}
 
-        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} bankLinked={!!bankLink?.linked} transactions={transactions} />
+        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} bankLinked={!!bankLink?.linked} transactions={transactions}
+          past={selPeriod < nowPeriod} />
 
         <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
           loggedTotals={expenseActuals.filter(a => a.source !== "transactions" && a.period_year === selYear && a.period_month === selMonth)}
