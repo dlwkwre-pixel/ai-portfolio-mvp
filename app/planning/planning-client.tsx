@@ -1245,7 +1245,6 @@ const NW_TIMEFRAMES = [
   { label: "1Y", days: 365, period: "past year" },
   { label: "All", days: 0, period: "" },
 ];
-const NW_TF_KEY = "bt-planning-nw-timeframe";
 
 function NetWorthHistoryCard({
   history, currentNW, currentAssets, currentLiabilities, isPrivate,
@@ -1261,17 +1260,8 @@ function NetWorthHistoryCard({
   const [trimDate, setTrimDate] = useState("");
   const [trimStatus, setTrimStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [tfDays, setTfDaysState] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    try {
-      const saved = Number(localStorage.getItem(NW_TF_KEY));
-      return NW_TIMEFRAMES.some((tf) => tf.days === saved) ? saved : 0;
-    } catch { return 0; }
-  });
-  const setTfDays = (days: number) => {
-    setTfDaysState(days);
-    try { localStorage.setItem(NW_TF_KEY, String(days)); } catch {}
-  };
+  // Opens on the past month every time.
+  const [tfDays, setTfDays] = useState(30);
 
   const today = new Date().toISOString().split("T")[0];
   const everyPoint: { date: string; net_worth: number }[] = [

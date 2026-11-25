@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry, NetWorthSnapshot } from "./planning-actions";
@@ -1193,6 +1193,16 @@ export default function CashFlowOS({
   const [incomeRange, setIncomeRange] = useState<SectionRange>("month");
   const [bvaRange, setBvaRange] = useState<SectionRange>("month");
   const [storyRange, setStoryRange] = useState<SectionRange>("month");
+  // Always open on the month: a page restored from the browser's back/forward cache (or a
+  // reopened app) would otherwise come back on whatever was picked last time.
+  useEffect(() => {
+    const reset = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      setViewModeState("monthly"); setIncomeRange("month"); setBvaRange("month"); setStoryRange("month");
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
   const setViewMode = (m: "monthly" | "annual" | "ytd" | "average") => {
     setViewModeState(m);
     const r: SectionRange | null = m === "ytd" ? "ytd" : m === "monthly" ? "month" : null;

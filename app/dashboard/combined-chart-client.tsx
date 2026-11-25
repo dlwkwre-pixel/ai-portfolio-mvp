@@ -19,7 +19,6 @@ const TIMEFRAMES = [
   { label: "1Y", days: 365, period: "past year" },
   { label: "All", days: 0, period: "all time" },
 ];
-const TF_KEY = "bt-dashboard-timeframe";
 
 function filterByDays(data: CombinedChartPoint[], days: number): CombinedChartPoint[] {
   if (days === 0) return data;
@@ -92,17 +91,8 @@ export default function CombinedChartClient({
   netWorthData?: CombinedChartPoint[];
 }) {
   const [view, setView] = useState<View>("portfolio");
-  const [tfDays, setTfDaysState] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    try {
-      const saved = Number(localStorage.getItem(TF_KEY));
-      return TIMEFRAMES.some(tf => tf.days === saved) ? saved : 0;
-    } catch { return 0; }
-  });
-  const setTfDays = (days: number) => {
-    setTfDaysState(days);
-    try { localStorage.setItem(TF_KEY, String(days)); } catch {}
-  };
+  // Opens on the past month every time.
+  const [tfDays, setTfDays] = useState(30);
   const periodLabel = TIMEFRAMES.find(tf => tf.days === tfDays)?.period ?? "this period";
   const [isPrivate, setIsPrivate] = useState(() => {
     if (typeof window === "undefined") return false;
